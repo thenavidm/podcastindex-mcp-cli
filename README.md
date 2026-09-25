@@ -22,7 +22,7 @@ So you can ask when something was said, and get an answer.
 
 There are 36 tools. One free key covers all but two of them.
 
-Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=podcastindex-mcp).
+Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme).
 
 <img src="https://cdn.navid.media/repos/podcastindex-mcp.gif?v=2" alt="Claude Code using the Podcast Index MCP server" width="520">
 
@@ -656,7 +656,7 @@ Navid Moazzez is a leading AI business strategist, and the host of the AI Creato
 
 **Links**
 
-- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=podcastindex-mcp)
+- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme)
 - YouTube: [@thenavidm](https://youtube.com/@thenavidm?sub_confirmation=1) and [@thenavidai](https://youtube.com/@thenavidai?sub_confirmation=1)
 - X: [@thenavidm](https://x.com/thenavidm)
 - Instagram: [@thenavidm](https://instagram.com/thenavidm)
@@ -688,4 +688,4 @@ Not affiliated with, endorsed by, or connected to Podcast Index LLC.
 
 ---
 
-© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=readme&utm_campaign=podcastindex-mcp). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=readme&utm_campaign=podcastindex-mcp).
+© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme).
