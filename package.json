@@ -1,6 +1,6 @@
 {
   "name": "@thenavidm/podcastindex-mcp-cli",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Podcast Index MCP server and CLI for Claude Code, Codex and AI agents. 36 tools for podcast search, episode transcripts you can actually read and search, Podcasting 2.0 tags, value-for-value data, feed health and index stats.",
   "type": "module",
   "main": "./dist/index.js",

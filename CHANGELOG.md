@@ -8,6 +8,10 @@
 | zod-to-json-schema | 3.24.x | 2026-09-03 |
 | Node | 20+ | 2026-09-01 |
 
+## 1.1.1
+
+SKILL.md's exit-code table now matches the code: a refused write exits 2, not 5, and 10 says what is missing.
+
 ## 1.1.0
 
 ### Renamed to podcastindex-mcp-cli

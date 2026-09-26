@@ -167,12 +167,12 @@ takes; run it once with `--agent` to see what it gives back.
 | Code | Meaning |
 |---|---|
 | 0 | Success |
-| 2 | Usage error, wrong or missing arguments |
+| 2 | Usage error, wrong or missing arguments, or a write refused for want of `--confirm` |
 | 3 | Not found, including a show that is not in the index |
-| 4 | Authentication required. Check the clock first |
-| 5 | API error upstream, or a refused write |
+| 4 | Authentication rejected. Check the clock first |
+| 5 | API error upstream |
 | 7 | Rate limited, wait and retry |
-| 10 | Config error |
+| 10 | Nothing configured: no API key and secret |
 
 Branch on these rather than reading the message. An unknown command exits 1.
 
