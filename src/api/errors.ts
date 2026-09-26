@@ -63,7 +63,7 @@ export class AuthError extends PodcastIndexError {
 export class MissingCredentialsError extends PodcastIndexError {
   constructor(what: string) {
     super(
-      `This tool needs a Podcast Index API key and secret, and ${what}. Both halves are required: the key identifies the caller and the secret signs the request, so one without the other cannot authenticate. Get a pair free at https://api.podcastindex.org/signup, then set PODCASTINDEX_API_KEY and PODCASTINDEX_API_SECRET in the server's env block and restart the client. Run "npx -y @thenavidm/podcastindex-mcp@latest doctor" to check them.`,
+      `This tool needs a Podcast Index API key and secret, and ${what}. Both halves are required: the key identifies the caller and the secret signs the request, so one without the other cannot authenticate. Get a pair free at https://api.podcastindex.org/signup, then set PODCASTINDEX_API_KEY and PODCASTINDEX_API_SECRET in the server's env block and restart the client. Run "npx -y @thenavidm/podcastindex-mcp-cli@latest doctor" to check them.`,
       0,
       "config",
       { surface: "index" },
@@ -134,7 +134,7 @@ export function errorFor(
 
   if (status === 401) {
     return new AuthError(
-      `Podcast Index rejected the credentials. That single response covers four different causes, in the order worth checking: this machine's clock has drifted more than three minutes from real time, which invalidates the signature on every request and is the most common cause and the least obvious; the secret is wrong or truncated; the key is wrong; or the pair has been revoked. Run "npx -y @thenavidm/podcastindex-mcp@latest doctor", which tests the clock against the server's own time and says which of these it is.`,
+      `Podcast Index rejected the credentials. That single response covers four different causes, in the order worth checking: this machine's clock has drifted more than three minutes from real time, which invalidates the signature on every request and is the most common cause and the least obvious; the secret is wrong or truncated; the key is wrong; or the pair has been revoked. Run "npx -y @thenavidm/podcastindex-mcp-cli@latest doctor", which tests the clock against the server's own time and says which of these it is.`,
       resource,
       detail,
     );

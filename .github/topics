@@ -2,7 +2,6 @@ mcp
 mcp-server
 model-context-protocol
 podcastindex
-podcast
 podcasts
 podcasting20
 podcast-namespace
@@ -16,5 +15,6 @@ cursor
 windsurf
 anthropic
 ai-agents
-llm-tools
 typescript
+cli
+command-line-tool

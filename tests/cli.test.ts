@@ -10,7 +10,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { flagsFor, parseArgs, isCliCommand } from "../src/cli.js";
+import { flagsFor, parseArgs, isCliCommand, exitCodeFor, EXIT } from "../src/cli.js";
 import { ALL_TOOLS } from "../src/tools/index.js";
 
 describe("flagsFor", () => {
@@ -195,5 +195,27 @@ describe("documentation stays in step with the code", () => {
       .map((m) => m[1] as string)
       .filter((a) => !slugs.has(a));
     expect(dead).toEqual([]);
+  });
+});
+
+describe("exit codes", () => {
+  const named = (name: string, message: string, status = 0) => Object.assign(new Error(message), { name, status });
+
+  it("nothing configured is 10, not an auth failure", () => {
+    expect(exitCodeFor(named("MissingCredentialsError", "This tool needs a Podcast Index API key and secret, and neither is set."))).toBe(EXIT.config);
+  });
+
+  it("a rejected key is still auth", () => {
+    expect(exitCodeFor(named("AuthError", "Podcast Index rejected this key", 401))).toBe(EXIT.auth);
+    expect(exitCodeFor(named("WritePermissionError", "This key does not have write permission", 403))).toBe(EXIT.auth);
+  });
+
+  it("a refused write is 2, the caller's to fix", () => {
+    expect(exitCodeFor(named("WriteBlockedError", "submit_feed adds a feed to a public directory, and there is no way to remove it through this API. Call again with --confirm if that is what was asked for."))).toBe(EXIT.usage);
+  });
+
+  it("not found is 3 and rate limited is 7", () => {
+    expect(exitCodeFor(named("NotFoundError", "No podcast with that id", 404))).toBe(EXIT.notFound);
+    expect(exitCodeFor({ status: 429, message: "slow down" })).toBe(EXIT.rateLimited);
   });
 });

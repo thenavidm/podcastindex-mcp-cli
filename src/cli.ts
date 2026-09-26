@@ -215,10 +215,18 @@ export function exitCodeFor(error: unknown): number {
   const e = error as { status?: number; code?: string; message?: string };
   const status = e?.status;
   const text = `${e?.code ?? ""} ${e?.message ?? ""}`.toLowerCase();
+  const name = (error as Error)?.name;
   if (status === 429 || /rate ?limit/.test(text)) return EXIT.rateLimited;
+  // Config before auth: the missing-credentials message names the API key and
+  // secret, and matching auth first sent someone who had configured nothing
+  // looking for a rejected key. Only when there is no HTTP status, so a real
+  // 401 still wins.
+  if (name === "MissingCredentialsError" || (!status && /not configured|missing .*env/.test(text))) return EXIT.config;
+  // A refused write is the caller's to fix, like a usage error: add --confirm,
+  // or turn read only off. Before auth, since its message mentions the API.
+  if (name === "WriteBlockedError" || /will not run without|read-only|is unavailable/.test(text)) return EXIT.usage;
   if (status === 401 || status === 403 || /auth|credential|api key|api secret/.test(text)) return EXIT.auth;
   if (status === 404 || /not found|has no feed|has nothing at/.test(text)) return EXIT.notFound;
-  if (/not configured|missing .*env|config/.test(text)) return EXIT.config;
   if (typeof status === "number" && status >= 500) return EXIT.api;
   return EXIT.api;
 }

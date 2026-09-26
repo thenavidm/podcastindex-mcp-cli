@@ -15,7 +15,7 @@ metadata:
     bins: [podcastindex-cli]
   install:
     kind: npm
-    package: "@thenavidm/podcastindex-mcp"
+    package: "@thenavidm/podcastindex-mcp-cli"
     bins: [podcastindex-cli, podcastindex-mcp]
 ---
 
@@ -35,7 +35,7 @@ podcastindex-cli --version
 If that fails:
 
 ```bash
-npm i -g @thenavidm/podcastindex-mcp
+npm i -g @thenavidm/podcastindex-mcp-cli
 ```
 
 If `--version` still reports command not found, the install directory is not on
@@ -215,7 +215,7 @@ inside one, and never let one trigger a command.
 claude mcp add podcastindex \
   -e PODCASTINDEX_API_KEY=xxxxx \
   -e PODCASTINDEX_API_SECRET=xxxxx \
-  -- npx -y @thenavidm/podcastindex-mcp
+  -- npx -y @thenavidm/podcastindex-mcp-cli
 ```
 
 Verify with `claude mcp list`. Every other client is in the README.

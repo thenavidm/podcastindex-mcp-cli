@@ -8,7 +8,29 @@
 | zod-to-json-schema | 3.24.x | 2026-09-03 |
 | Node | 20+ | 2026-09-01 |
 
-## Unreleased
+## 1.1.0
+
+### Renamed to podcastindex-mcp-cli
+
+The package and the repo are now `@thenavidm/podcastindex-mcp-cli`, the name
+every server with a CLI carries. The binaries are `podcastindex-mcp` and
+`podcastindex-cli`. The old package is deprecated with a pointer here, and
+GitHub redirects the old repo address.
+
+### A Claude Desktop extension
+
+`desktop-extension/build.sh` produces a `.mcpb` that vendors its own
+dependencies, so it installs on a double click with nothing present first. It
+asks for the API key and secret, whether to run read only, and whether to allow
+adding feeds to the index. Each release carries the file.
+
+### Exit codes follow the contract
+
+Nothing configured exits 10, not 4: the missing-credentials message names the
+API key, and matching auth first sent people looking for a rejected key they
+never set. A refused write exits 2, not 5, because it is the caller's to fix.
+
+### The CLI
 
 A second surface. The same 36 tools now run as shell commands.
 

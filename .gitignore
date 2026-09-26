@@ -9,3 +9,5 @@ dist/
 *.jsonl
 .DS_Store
 coverage/
+desktop-extension/build/
+desktop-extension/*.mcpb

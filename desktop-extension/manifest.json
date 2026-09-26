@@ -1,0 +1,84 @@
+{
+  "manifest_version": "0.2",
+  "name": "podcastindex",
+  "display_name": "Podcast Index",
+  "version": "1.1.0",
+  "description": "Podcast Index MCP server and CLI for Claude Code, Codex and AI agents. 36 tools for podcast search, episode transcripts you can actually read and search, Podcasting 2.0 tags, value-for-value data, feed health and index stats.",
+  "long_description": "Connects Claude to Podcast Index, the open podcast directory.\n\nOne free API key and secret, from api.podcastindex.org/signup, cover every reading tool. Both halves are needed: the key identifies you and the secret signs each request.\n\nIt searches four million podcasts and then opens the transcript: Podcast Index hands out a link to an episode's transcript file, and this fetches it and gives your AI the words with timestamps and speakers.\n\nAdding a feed to the public index cannot be undone through the API, so submit_feed and submit_feed_by_itunes_id refuse to run without an explicit confirmation, and they also need a key with write permission. Turn Read only on to remove every write from the tool list.",
+  "author": {
+    "name": "Navid Moazzez",
+    "url": "https://navid.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thenavidm/podcastindex-mcp-cli"
+  },
+  "homepage": "https://github.com/thenavidm/podcastindex-mcp-cli",
+  "documentation": "https://github.com/thenavidm/podcastindex-mcp-cli#readme",
+  "support": "https://github.com/thenavidm/podcastindex-mcp-cli/issues",
+  "license": "MIT",
+  "keywords": [
+    "podcastindex",
+    "podcasts",
+    "transcripts",
+    "podcasting20",
+    "mcp"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "PODCASTINDEX_API_KEY": "${user_config.api_key}",
+        "PODCASTINDEX_API_SECRET": "${user_config.api_secret}",
+        "PODCASTINDEX_READ_ONLY": "${user_config.read_only}",
+        "PODCASTINDEX_ALLOW_DESTRUCTIVE": "${user_config.allow_destructive}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Podcast Index API key",
+      "description": "Free from api.podcastindex.org/signup. It arrives by email with its secret.",
+      "sensitive": true,
+      "required": true
+    },
+    "api_secret": {
+      "type": "string",
+      "title": "Podcast Index API secret",
+      "description": "The secret that came with the key. Both are needed: the secret signs every request.",
+      "sensitive": true,
+      "required": true
+    },
+    "read_only": {
+      "type": "boolean",
+      "title": "Read only",
+      "description": "Hide the three tools that write: the recrawl ping and the two that add a feed to the index.",
+      "default": false,
+      "required": false
+    },
+    "allow_destructive": {
+      "type": "boolean",
+      "title": "Allow adding feeds to the index",
+      "description": "Turn this off to keep the recrawl ping while blocking submit_feed and submit_feed_by_itunes_id, which cannot be undone.",
+      "default": true,
+      "required": false
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20"
+    }
+  }
+}

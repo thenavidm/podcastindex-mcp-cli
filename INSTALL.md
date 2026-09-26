@@ -32,7 +32,7 @@ email confirmation step to wait for.
 **5.** Check it:
 
 ```bash
-npx -y @thenavidm/podcastindex-mcp@latest doctor
+npx -y @thenavidm/podcastindex-mcp-cli@latest doctor
 ```
 
 ## Write permission, which you probably do not need

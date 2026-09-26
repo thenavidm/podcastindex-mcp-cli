@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install podcastindex-mcp into Claude Code, and check it works.
+# Install podcastindex-mcp-cli into Claude Code, and check it works.
 #
 # Everything here is also two manual steps in the README. This exists for
 # people who would rather run one line.
 set -euo pipefail
 
-PKG="@thenavidm/podcastindex-mcp@latest"
+PKG="@thenavidm/podcastindex-mcp-cli@latest"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node is not installed. Get it from https://nodejs.org (version 20 or newer)." >&2

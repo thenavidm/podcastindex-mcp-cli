@@ -40,7 +40,7 @@ Do not re-derive these.
 | | |
 |---|---|
 | Language | TypeScript, Node 20+, ESM |
-| Package | `@thenavidm/podcastindex-mcp` |
+| Package | `@thenavidm/podcastindex-mcp-cli` |
 | Transport | stdio and streamable HTTP |
 | Tests | vitest against a faked fetch, never the network |
 | Writes | on by default, `confirm` only on the two irreversible ones |

@@ -1,16 +1,18 @@
 <img src="https://cdn.navid.media/connectors/podcastindex-icon.png" alt="Podcast Index" width="88">
 
-# Podcast Index MCP
+# Podcast Index MCP Server & CLI
 
-[![Stars](https://img.shields.io/github/stars/thenavidm/podcastindex-mcp?style=flat&logo=github&label=Stars)](https://github.com/thenavidm/podcastindex-mcp)
+[![Stars](https://img.shields.io/github/stars/thenavidm/podcastindex-mcp-cli?style=flat&logo=github&label=Stars)](https://github.com/thenavidm/podcastindex-mcp-cli)
 [![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
-[![npm](https://img.shields.io/npm/v/@thenavidm/podcastindex-mcp?color=orange&label=npm)](https://www.npmjs.com/package/@thenavidm/podcastindex-mcp)
-[![Downloads](https://img.shields.io/npm/dm/@thenavidm/podcastindex-mcp?color=green&label=downloads)](https://www.npmjs.com/package/@thenavidm/podcastindex-mcp)
+[![npm](https://img.shields.io/npm/v/@thenavidm/podcastindex-mcp-cli?color=orange&label=npm)](https://www.npmjs.com/package/@thenavidm/podcastindex-mcp-cli)
+[![Downloads](https://img.shields.io/npm/dm/@thenavidm/podcastindex-mcp-cli?color=green&label=downloads)](https://www.npmjs.com/package/@thenavidm/podcastindex-mcp-cli)
 [![YouTube](https://img.shields.io/badge/YouTube-@thenavidm-red?logo=youtube&logoColor=white)](https://youtube.com/@thenavidm?sub_confirmation=1)
 [![X](https://img.shields.io/badge/X-@thenavidm-black?logo=x)](https://x.com/thenavidm)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-thenavidm-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/thenavidm)
 
-The open podcast directory for Claude, Cursor, and any other AI agent.
+Podcast Index MCP server and CLI for Claude Code, Codex and AI agents. 36 tools for podcast search, episode transcripts you can actually read and search, Podcasting 2.0 tags, value-for-value data, feed health and index stats.
+
+One install gives you both surfaces, the same 36 tools under the same names, reading one array of tool definitions so they cannot drift apart.
 
 It searches four million podcasts, and then it does the thing the API stops
 short of: it opens the transcript. Podcast Index hands out a link to an
@@ -22,9 +24,53 @@ So you can ask when something was said, and get an answer.
 
 There are 36 tools. One free key covers all but two of them.
 
-Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme).
+Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme).
 
 <img src="https://cdn.navid.media/repos/podcastindex-mcp.gif?v=2" alt="Claude Code using the Podcast Index MCP server" width="520">
+
+## Two ways to use it
+
+### Command line
+
+`podcastindex-cli` runs every tool as a command. Agents that run commands, like
+Claude Code, Codex and OpenCode, use it on their own, and you can type the same
+commands in a terminal, a script or a cron job:
+
+```bash
+podcastindex-cli                                          # every command, one line each
+podcastindex-cli status                                   # what this server can reach
+podcastindex-cli search-podcasts --q "ai agents" --max 5
+podcastindex-cli get-trending --max 10
+podcastindex-cli search-transcript --episode-id <id> --query "compound interest"
+podcastindex-cli find-guest-appearances --name "Tim Ferriss"
+podcastindex-cli check-feed-health --show https://example.com/feed.xml
+podcastindex-cli submit-feed --feed-url https://example.com/feed.xml --confirm
+podcastindex-cli <command> --help                         # what any command takes
+```
+
+`--confirm` is the shell spelling of the confirmation that adding a feed to the
+index needs. `--json` gives JSON, `--compact` puts it on one line, `--select`
+keeps only the fields you name, and `--agent` turns on all of it for a script.
+Exit codes are 0 ok, 2 usage or a refused write, 3 not found, 4 auth, 5 API,
+7 rate limited and 10 nothing configured, so a script branches on the number.
+
+`podcastindex-cli schema <command>` prints the exact JSON Schema an MCP client
+receives for that tool.
+
+### MCP server, for AI agents
+
+`podcastindex-mcp` is what Claude Code, Claude Desktop, Cursor and the rest
+launch. You never run it by hand:
+
+```bash
+claude mcp add podcastindex \
+  -e PODCASTINDEX_API_KEY=your_key \
+  -e PODCASTINDEX_API_SECRET=your_secret \
+  -- npx -y @thenavidm/podcastindex-mcp-cli@latest
+```
+
+In Claude Desktop, the [`.mcpb` extension](https://github.com/thenavidm/podcastindex-mcp-cli/releases/latest)
+installs on a double click. Section 4 has every other client.
 
 ## Contents
 
@@ -64,11 +110,18 @@ why "when did they say that" is a question you can now ask.
 Node 20 or newer. Nothing else.
 
 ```bash
-npx -y @thenavidm/podcastindex-mcp@latest --version
+npx -y @thenavidm/podcastindex-mcp-cli@latest --version
 ```
 
 That is the whole install. `npx` fetches it on demand, so there is nothing to
 update later.
+
+For the CLI as a command you or your agent can run anywhere, install it once:
+
+```bash
+npm install -g @thenavidm/podcastindex-mcp-cli
+podcastindex-cli
+```
 
 ## 3. Setup 🔑
 
@@ -127,13 +180,20 @@ The long version, every step with what to do when one fails, is in [INSTALL.md](
 claude mcp add podcastindex \
   -e PODCASTINDEX_API_KEY=your_key \
   -e PODCASTINDEX_API_SECRET=your_secret \
-  -- npx -y @thenavidm/podcastindex-mcp@latest
+  -- npx -y @thenavidm/podcastindex-mcp-cli@latest
 ```
 
 Add `--scope user` to make it available in every project rather than the
 current one.
 
 ### Claude Desktop
+
+The short way: download the [`.mcpb` extension](https://github.com/thenavidm/podcastindex-mcp-cli/releases/latest)
+from the latest release and double-click it. It carries its own dependencies,
+so there is no config file to edit and nothing to install first. Claude Desktop
+asks for your API key and secret, and whether to run it read only.
+
+The long way, if you would rather edit the config yourself:
 
 | Platform | Config path |
 |---|---|
@@ -145,7 +205,7 @@ current one.
   "mcpServers": {
     "podcastindex": {
       "command": "npx",
-      "args": ["-y", "@thenavidm/podcastindex-mcp@latest"],
+      "args": ["-y", "@thenavidm/podcastindex-mcp-cli@latest"],
       "env": {
         "PODCASTINDEX_API_KEY": "your_key",
         "PODCASTINDEX_API_SECRET": "your_secret"
@@ -167,7 +227,7 @@ claude.ai runs connectors from Anthropic's cloud, not from your machine, so it
 needs a public HTTPS URL rather than a local command.
 
 ```bash
-npx -y @thenavidm/podcastindex-mcp@latest --http --port 8000
+npx -y @thenavidm/podcastindex-mcp-cli@latest --http --port 8000
 ```
 
 Host that somewhere with a public HTTPS URL and set `PODCASTINDEX_HTTP_TOKEN`,
@@ -197,7 +257,7 @@ needs `"type": "stdio"`.
     "podcastindex": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@thenavidm/podcastindex-mcp@latest"],
+      "args": ["-y", "@thenavidm/podcastindex-mcp-cli@latest"],
       "env": {
         "PODCASTINDEX_API_KEY": "your_key",
         "PODCASTINDEX_API_SECRET": "your_secret"
@@ -214,7 +274,7 @@ needs `"type": "stdio"`.
 ```toml
 [mcp_servers.podcastindex]
 command = "npx"
-args = ["-y", "@thenavidm/podcastindex-mcp@latest"]
+args = ["-y", "@thenavidm/podcastindex-mcp-cli@latest"]
 
 [mcp_servers.podcastindex.env]
 PODCASTINDEX_API_KEY = "your_key"
@@ -254,10 +314,14 @@ listed here so nobody has to read the source to find out what is tunable.
 | `PODCASTINDEX_HTTP_HOST` | `127.0.0.1` | For `--http` only |
 | `PODCASTINDEX_HTTP_TOKEN` | none | Bearer token. Required to bind anything but loopback |
 
+**To disconnect,** remove the entry from your client's config and restart the
+client. There is nothing installed globally to uninstall, since `npx` fetches it
+per run, and nothing on disk to clean up unless you configured an audit log.
+
 ## 5. Check it worked 🩺
 
 ```bash
-npx -y @thenavidm/podcastindex-mcp@latest doctor
+npx -y @thenavidm/podcastindex-mcp-cli@latest doctor
 ```
 
 ```
@@ -537,6 +601,20 @@ absorbed in training. With one, it goes and looks.
 </details>
 
 <details>
+<summary><b>What is the CLI?</b></summary>
+
+`podcastindex-cli` is the same program as the MCP server, run as commands. AI agents that run commands, like Claude Code, Codex and OpenCode, use it on their own, and you can type the same commands in a terminal, a script or a cron job. Every tool is a command with dashes, so `get_trending` runs as `podcastindex-cli get-trending`.
+
+</details>
+
+<details>
+<summary><b>Should I use the MCP server or the CLI?</b></summary>
+
+Use the MCP server in an app with no terminal, like Claude Desktop's chat. Use the CLI anywhere commands run: an agent like Claude Code, Codex or OpenCode, a script or a cron job. The MCP server sends its full tool list to the model on every turn, and the CLI costs nothing until it runs.
+
+</details>
+
+<details>
 <summary><b>What is Podcast Index?</b></summary>
 
 Podcast Index is an open, free directory of podcasts. Around four million feeds, run
@@ -552,9 +630,10 @@ is interesting.
 <details>
 <summary><b>Do I need to be technical to use this?</b></summary>
 
-You need to paste a block of JSON into a config file and sign up for a free key.
-That is the whole technical bar. Step 3 walks through it, and you can hand the
-prompt in that section to an agent and let it do the wiring.
+Not in Claude Desktop: the `.mcpb` extension installs on a double click and asks
+for your free key. Elsewhere you paste a block of JSON into a config file, and
+step 3 walks through it. You can also hand the prompt in that section to an
+agent and let it do the wiring.
 
 </details>
 
@@ -637,18 +716,9 @@ the content from the show notes.
 
 </details>
 
-<details>
-<summary><b>How do I disconnect it?</b></summary>
-
-Remove the entry from your client's config and restart the client. There is
-nothing installed globally to uninstall, since `npx` fetches it per run, and
-nothing on disk to clean up unless you configured an audit log.
-
-</details>
-
 ## Questions
 
-Run into a problem or have a question? [Open an issue](https://github.com/thenavidm/podcastindex-mcp/issues) and I will help.
+Run into a problem or have a question? [Open an issue](https://github.com/thenavidm/podcastindex-mcp-cli/issues) and I will help.
 
 ## About the author 👋
 
@@ -656,7 +726,7 @@ Navid Moazzez is a leading AI business strategist, and the host of the AI Creato
 
 **Links**
 
-- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme)
+- Personal website: [navid.me](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme)
 - YouTube: [@thenavidm](https://youtube.com/@thenavidm?sub_confirmation=1) and [@thenavidai](https://youtube.com/@thenavidai?sub_confirmation=1)
 - X: [@thenavidm](https://x.com/thenavidm)
 - Instagram: [@thenavidm](https://instagram.com/thenavidm)
@@ -678,7 +748,7 @@ reads.
 
 ## Security
 
-Found a vulnerability? [Report it privately](https://github.com/thenavidm/podcastindex-mcp/security/advisories/new), not as a public issue. [SECURITY.md](SECURITY.md) covers what this server can reach, the write-safety model, and running it over HTTP.
+Found a vulnerability? [Report it privately](https://github.com/thenavidm/podcastindex-mcp-cli/security/advisories/new), not as a public issue. [SECURITY.md](SECURITY.md) covers what this server can reach, the write-safety model, and running it over HTTP.
 
 ## License
 
@@ -688,4 +758,4 @@ Not affiliated with, endorsed by, or connected to Podcast Index LLC.
 
 ---
 
-© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp&utm_content=readme).
+© 2026 [NM Media](https://navid.media?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme). Made with ❤️ by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme).
