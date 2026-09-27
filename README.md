@@ -80,7 +80,7 @@ difference is when the model pays for them. Measured in Claude Code:
 | | MCP server | CLI |
 |---|---|---|
 | Every message, with every tool loaded | 13,100 tokens | nothing |
-| Every message, Claude Code's default | 1,200 tokens | nothing |
+| Every message, Claude Code's default | 1,300 tokens | nothing |
 | When Podcast Index comes up | nothing more, or the tools it picks | 3,300 tokens for `SKILL.md`, once |
 | 20 messages with Podcast Index in 1, every tool loaded | 262,000 tokens | 3,300 tokens |
 
