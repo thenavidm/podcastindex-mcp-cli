@@ -8,6 +8,10 @@
 | zod-to-json-schema | 3.24.x | 2026-09-03 |
 | Node | 20+ | 2026-09-01 |
 
+## 1.1.2, 2026-10-04
+
+- **`npx -y @thenavidm/podcastindex-mcp-cli` always starts the MCP server.** npx starts whichever binary the npm registry lists first when they share one file, and the registry does not keep the published order, so an MCP client set up with this README's install line could get `podcastindex-cli` and its command list instead of a server. A third binary named after the package now always starts the server, and npx picks it by name.
+
 ## 1.1.1
 
 SKILL.md's exit-code table now matches the code: a refused write exits 2, not 5, and 10 says what is missing.
