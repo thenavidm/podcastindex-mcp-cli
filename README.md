@@ -145,7 +145,7 @@ is the tool name with dashes.
 | Add or refresh a feed | `podcastindex-cli notify-feed-update` / `submit-feed` | `notify_feed_update` / `submit_feed` |
 | Check your setup | `podcastindex-cli doctor` | `status` |
 
-All 36 are in [section 6](#6-tools-).
+All 36 are in [section 6](#6-tools-%EF%B8%8F).
 
 ## Contents
 
@@ -156,7 +156,7 @@ All 36 are in [section 6](#6-tools-).
 | 3 | [Setup](#3-setup-) | Getting a key, about two minutes |
 | 4 | [Connect your client](#4-connect-your-client-) | Every client, copy and paste |
 | 5 | [Check it worked](#5-check-it-worked-) | `doctor`, and what actually fails |
-| 6 | [Tools](#6-tools-) | All 36, grouped by what they reach |
+| 6 | [Tools](#6-tools-%EF%B8%8F) | All 36, grouped by what they reach |
 | 7 | [What Podcast Index actually does](#7-what-podcast-index-actually-does-) | The traps, learned the hard way |
 | 8 | [Your data](#8-your-data-) | What is sent, and what never is |
 | 9 | [Writing safely](#9-writing-safely-) | Short, because almost nothing writes |
