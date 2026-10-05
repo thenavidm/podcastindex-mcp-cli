@@ -1,179 +1,108 @@
 /**
- * The CLI adapter.
+ * The two surfaces, now that Slipway builds both from ALL_TOOLS.
  *
- * What matters here is that the shell surface is derived from the tool specs
- * rather than described a second time, so the tests that count are the ones
- * asserting parity with ALL_TOOLS and the ones covering the argv shapes a
- * person actually types.
+ * Parsing, help and the exit-code contract are Slipway's and tested there. What
+ * matters here: every tool arrives on both surfaces intact, under 1.1's command
+ * names; the resources and prompts still reach a client; Podcast Index's
+ * errors keep their exit codes; and the docs stay in step with the code.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-import { flagsFor, parseArgs, isCliCommand, exitCodeFor, EXIT } from "../src/cli.js";
+import { EXIT } from "@thenavidm/slipway";
+import { checkApp, cli, connect } from "@thenavidm/slipway/testing";
+import { MissingCredentialsError, NotFoundError, PodcastIndexError, RateLimitError, TimeoutError, WritePermissionError, errorFor } from "../src/api/errors.js";
+import { app } from "../src/app.js";
 import { ALL_TOOLS } from "../src/tools/index.js";
+import { classifyShow, toSlipway } from "../src/tools/kit.js";
 
-describe("flagsFor", () => {
-  it("derives a flag per schema key, kebab-cased", () => {
-    const flags = flagsFor({ episode_id: z.number().optional() });
-    expect(flags[0]).toMatchObject({ key: "episode_id", flag: "--episode-id", kind: "number" });
+const creds = (): NodeJS.ProcessEnv => ({ PODCASTINDEX_API_KEY: "TESTKEY", PODCASTINDEX_API_SECRET: "testsecret" });
+
+describe("Podcast Index on Slipway", () => {
+  it("offers every tool as a command and over MCP, under the same names", async () => {
+    const list = await cli(app, [], { env: creds() });
+    for (const tool of ALL_TOOLS) expect(list.stdout).toContain(tool.command);
+    const mcp = await connect(app, { env: creds() });
+    const names = (await mcp.listTools()).map((tool) => tool.name);
+    await mcp.close();
+    expect(names).toEqual(ALL_TOOLS.map((tool) => tool.name));
   });
 
-  it("reads required from the absence of .optional()", () => {
-    const flags = flagsFor({ show: z.string(), max: z.number().optional() });
-    expect(flags.find((f) => f.key === "show")?.required).toBe(true);
-    expect(flags.find((f) => f.key === "max")?.required).toBe(false);
+  it("serves the status and concepts resources and the four prompts", async () => {
+    const mcp = await connect(app, { env: creds() });
+    const resources = (await mcp.request("resources/list")) as { resources: Array<{ uri: string }> };
+    const status = (await mcp.request("resources/read", { uri: "podcastindex://status" })) as { contents: Array<{ text: string }> };
+    const prompts = (await mcp.request("prompts/list")) as { prompts: Array<{ name: string }> };
+    await mcp.close();
+    expect(resources.resources.map((r) => r.uri).sort()).toEqual(["podcastindex://concepts", "podcastindex://status"]);
+    expect(JSON.parse(status.contents[0]!.text)).toMatchObject({ credentials_configured: true, read_only: false, max_transcript_chars: 24000 });
+    expect(prompts.prompts.map((p) => p.name)).toEqual(["episode-deep-read", "guest-research", "pitch-list", "feed-checkup"]);
   });
 
-  it("carries .describe() through as help", () => {
-    const flags = flagsFor({ show: z.string().describe("The show.") });
-    expect(flags[0]?.help).toBe("The show.");
+  it("exits 10 with nothing configured, and 2 for a missing argument", async () => {
+    expect((await cli(app, ["get-podcast", "--show", "920666"], { env: {} })).code).toBe(EXIT.notConfigured);
+    expect((await cli(app, ["get-podcast"], { env: creds() })).code).toBe(EXIT.usage);
   });
 
-  it("finds the description whichever side of .optional() it was chained", () => {
-    const outer = flagsFor({ a: z.string().optional().describe("outer") });
-    const inner = flagsFor({ b: z.string().describe("inner").optional() });
-    expect(outer[0]?.help).toBe("outer");
-    expect(inner[0]?.help).toBe("inner");
-  });
-
-  it("exposes an enum's values as choices", () => {
-    const flags = flagsFor({ format: z.enum(["srt", "vtt"]).optional() });
-    expect(flags[0]).toMatchObject({ kind: "enum", choices: ["srt", "vtt"] });
-  });
-
-  it("marks a scalar array repeatable and an object array json", () => {
-    const flags = flagsFor({
-      shows: z.array(z.string()).optional(),
-      splits: z.array(z.object({ address: z.string() })).optional(),
-    });
-    expect(flags.find((f) => f.key === "shows")).toMatchObject({ kind: "string", repeatable: true });
-    expect(flags.find((f) => f.key === "splits")).toMatchObject({ kind: "json", repeatable: true });
+  it("passes slipway check", async () => {
+    const report = await checkApp(app, { env: creds() });
+    expect(report.findings.filter((finding) => finding.level === "error")).toEqual([]);
   });
 });
 
-describe("parseArgs", () => {
-  const flags = flagsFor({
-    show: z.string(),
-    max: z.number().optional(),
-    confirm: z.boolean().optional(),
-    shows: z.array(z.string()).optional(),
-    filter: z.object({ lang: z.string() }).optional(),
-    format: z.enum(["srt", "vtt"]).optional(),
+describe("Podcast Index's errors keep their exit codes", () => {
+  it.each([
+    ["nothing configured, not an auth failure", new MissingCredentialsError("neither is set"), EXIT.notConfigured],
+    ["a rejected key", errorFor(401, "stats/current", ""), EXIT.auth],
+    ["a key without write permission", new WritePermissionError("add/byfeedurl"), EXIT.auth],
+    ["a feed that is not in the index", new NotFoundError("No podcast with that id", "podcasts"), EXIT.notFound],
+    ["rate limited", new RateLimitError("search/byterm", 2), EXIT.rateLimited],
+    ["a parameter Podcast Index rejected", errorFor(400, "search/byterm", ""), EXIT.usage],
+    ["an upstream failure", errorFor(503, "search/byterm", ""), EXIT.api],
+    ["a host that never answered", new PodcastIndexError("Could not reach api.podcastindex.org: fetch failed", 0, "api.podcastindex.org", { retryable: true }), EXIT.api],
+    ["a timeout", new TimeoutError("No response from api.podcastindex.org within 30000ms.", "api.podcastindex.org"), EXIT.api],
+    ["a chapters file that is not JSON", new Error("The chapters URL did not return JSON."), EXIT.api],
+  ])("%s", (_name, raw, code) => {
+    expect((toSlipway(raw) as { exitCode: number }).exitCode).toBe(code);
   });
 
-  it("accepts --flag value and --flag=value alike", () => {
-    expect(parseArgs(["--show", "920666"], flags)).toEqual({ show: "920666" });
-    expect(parseArgs(["--show=920666"], flags)).toEqual({ show: "920666" });
+  it("calls a show name a usage mistake, and says what to do instead", () => {
+    expect(() => classifyShow("The Daily")).toThrow(expect.objectContaining({ exitCode: EXIT.usage, message: expect.stringContaining("search_podcasts") }));
   });
 
-  it("accepts the underscore spelling of a flag", () => {
-    const underscored = flagsFor({ episode_id: z.number().optional() });
-    expect(parseArgs(["--episode_id", "12"], underscored)).toEqual({ episode_id: 12 });
-  });
-
-  it("treats a boolean as a bare switch", () => {
-    expect(parseArgs(["--show", "x", "--confirm"], flags)).toEqual({ show: "x", confirm: true });
-    expect(parseArgs(["--confirm=false"], flags)).toEqual({ confirm: false });
-  });
-
-  it("coerces numbers, and refuses ones that are not", () => {
-    expect(parseArgs(["--max", "25"], flags)).toEqual({ max: 25 });
-    expect(() => parseArgs(["--max", "many"], flags)).toThrow(/expects a number/);
-  });
-
-  it("parses a json flag, and refuses malformed json", () => {
-    expect(parseArgs(['--filter={"lang":"en"}'], flags)).toEqual({ filter: { lang: "en" } });
-    expect(() => parseArgs(["--filter", "{oops"], flags)).toThrow(/expects JSON/);
-  });
-
-  it("collects a repeatable flag into an array", () => {
-    expect(parseArgs(["--shows", "1", "--shows", "2"], flags)).toEqual({ shows: ["1", "2"] });
-  });
-
-  it("checks an enum against its choices", () => {
-    expect(() => parseArgs(["--format", "json5"], flags)).toThrow(/expects one of/);
-  });
-
-  it("fills the first required flag from a bare argument", () => {
-    expect(parseArgs(["920666"], flags)).toEqual({ show: "920666" });
-  });
-
-  it("wraps a bare argument when the required flag is repeatable", () => {
-    const repeatable = flagsFor({ shows: z.array(z.string()) });
-    expect(parseArgs(["920666"], repeatable)).toEqual({ shows: ["920666"] });
-  });
-
-  it("refuses an unknown option rather than dropping it", () => {
-    expect(() => parseArgs(["--nope", "x"], flags)).toThrow(/Unknown option/);
-  });
-
-  it("refuses a second bare argument", () => {
-    expect(() => parseArgs(["one", "two"], flags)).toThrow(/Unexpected argument/);
-  });
-});
-
-describe("parity with the MCP surface", () => {
-  it("routes every tool name, in both spellings", () => {
-    for (const tool of ALL_TOOLS) {
-      expect(isCliCommand([tool.name])).toBe(true);
-      expect(isCliCommand([tool.name.replace(/_/g, "-")])).toBe(true);
-    }
-  });
-
-  it("builds flags for every tool without throwing", () => {
-    for (const tool of ALL_TOOLS) {
-      expect(() => flagsFor(tool.schema)).not.toThrow();
-    }
-  });
-
-  it("gives every schema key a flag", () => {
-    for (const tool of ALL_TOOLS) {
-      expect(flagsFor(tool.schema)).toHaveLength(Object.keys(tool.schema).length);
-    }
-  });
-
-  it("leaves the server's own flags alone", () => {
-    expect(isCliCommand(["--http"])).toBe(false);
-    expect(isCliCommand(["--version"])).toBe(false);
-    expect(isCliCommand([])).toBe(false);
-  });
-
-  /**
-   * `doctor` is the entry point's own word, not a tool. If a tool were ever
-   * named that, `podcastindex-mcp doctor` would silently become a tool call.
-   */
-  it("does not collide with the entry point's own subcommands", () => {
-    expect(isCliCommand(["doctor"])).toBe(false);
-    expect(isCliCommand(["help"])).toBe(false);
+  it("leaves a bug in this code as unexpected", () => {
+    expect(toSlipway(new TypeError("x is undefined"))).toBeInstanceOf(TypeError);
   });
 });
 
 describe("documentation stays in step with the code", () => {
   const read = (p: string): string => readFileSync(new URL(p, import.meta.url), "utf-8");
-  const names = (text: string): Set<string> => new Set(text.match(/PODCASTINDEX_[A-Z_]+/g) ?? []);
+  const names = (text: string): Set<string> => new Set((text.match(/PODCASTINDEX_[A-Z_]+/g) ?? []).filter((name) => !name.endsWith("_")));
+  const source = (dir: string): string =>
+    readdirSync(new URL(dir, import.meta.url), { withFileTypes: true })
+      .map((entry) => (entry.isDirectory() ? source(`${dir}${entry.name}/`) : entry.name.endsWith(".ts") ? read(`${dir}${entry.name}`) : ""))
+      .join("\n");
+
+  /** Every variable the server reads: this repo's code, and Slipway's as agent-context lists them. */
+  const used = async (): Promise<Set<string>> => {
+    const context = JSON.parse((await cli(app, ["agent-context"], { env: {} })).stdout);
+    return new Set([...names(source("../src/")), ...context.settings.map((setting: { env: string }) => setting.env)]);
+  };
 
   /**
    * Two variables shipped undocumented and five never reached `--help`, which is
    * the kind of drift nobody notices because both sides look complete on their own.
    */
-  it("documents every environment variable the code reads", () => {
-    const used = names(["config.ts", "transport/http.ts"].map((f) => read(`../src/${f}`)).join("\n"));
+  it("documents every environment variable the code reads", async () => {
     const documented = names(read("../README.md"));
-    expect([...used].filter((v) => !documented.has(v))).toEqual([]);
+    expect([...(await used())].filter((v) => !documented.has(v))).toEqual([]);
   });
 
-  it("lists every environment variable in --help", () => {
-    const used = names(["config.ts", "transport/http.ts"].map((f) => read(`../src/${f}`)).join("\n"));
-    const helped = names(read("../src/index.ts"));
-    // The help groups the three HTTP ones as `PODCASTINDEX_HTTP_PORT / _HOST / _TOKEN`,
-    // and API_HOST is a test seam nobody configuring this server should reach for.
-    const shorthand = new Set([
-      "PODCASTINDEX_HTTP_HOST",
-      "PODCASTINDEX_HTTP_TOKEN",
-      "PODCASTINDEX_API_HOST",
-    ]);
-    expect([...used].filter((v) => !helped.has(v) && !shorthand.has(v))).toEqual([]);
+  it("lists every environment variable in --help", async () => {
+    const help = (await cli(app, ["--help"], { env: {} })).stdout;
+    // The help groups the HTTP ones as `PODCASTINDEX_HTTP_PORT / _HOST / _TOKEN / _ALLOWED_ORIGINS`.
+    const shorthand = new Set(["PODCASTINDEX_HTTP_HOST", "PODCASTINDEX_HTTP_TOKEN", "PODCASTINDEX_HTTP_ALLOWED_ORIGINS"]);
+    expect([...(await used())].filter((v) => !help.includes(v) && !shorthand.has(v))).toEqual([]);
   });
 
   /**
@@ -195,27 +124,5 @@ describe("documentation stays in step with the code", () => {
       .map((m) => m[1] as string)
       .filter((a) => !slugs.has(a));
     expect(dead).toEqual([]);
-  });
-});
-
-describe("exit codes", () => {
-  const named = (name: string, message: string, status = 0) => Object.assign(new Error(message), { name, status });
-
-  it("nothing configured is 10, not an auth failure", () => {
-    expect(exitCodeFor(named("MissingCredentialsError", "This tool needs a Podcast Index API key and secret, and neither is set."))).toBe(EXIT.config);
-  });
-
-  it("a rejected key is still auth", () => {
-    expect(exitCodeFor(named("AuthError", "Podcast Index rejected this key", 401))).toBe(EXIT.auth);
-    expect(exitCodeFor(named("WritePermissionError", "This key does not have write permission", 403))).toBe(EXIT.auth);
-  });
-
-  it("a refused write is 2, the caller's to fix", () => {
-    expect(exitCodeFor(named("WriteBlockedError", "submit_feed adds a feed to a public directory, and there is no way to remove it through this API. Call again with --confirm if that is what was asked for."))).toBe(EXIT.usage);
-  });
-
-  it("not found is 3 and rate limited is 7", () => {
-    expect(exitCodeFor(named("NotFoundError", "No podcast with that id", 404))).toBe(EXIT.notFound);
-    expect(exitCodeFor({ status: 429, message: "slow down" })).toBe(EXIT.rateLimited);
   });
 });

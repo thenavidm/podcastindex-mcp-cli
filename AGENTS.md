@@ -6,11 +6,11 @@ For someone changing the code. Installation lives in the README.
 
 ```
 src/
-  index.ts        entry, arg parsing, transport selection
-  server.ts       assembles the server: instructions, tools, resources, prompts
+  index.ts        entry: turns on the compile cache and starts the app
+  app.ts          the Slipway app: tools, settings, resources, prompts, doctor
+  guide.ts        the server instructions, the concepts resource, the prompts
   config.ts       settings from environment
-  safety.ts       write gating, annotations, injection fencing
-  doctor.ts       the troubleshooting command
+  doctor.ts       the clock and the credentials, for `doctor`
   api/
     http.ts       request signing, throttle, retry, cache, file fetching
     client.ts     one typed method per endpoint
@@ -19,9 +19,13 @@ src/
     transcripts.ts  format detection and parsing
     chapters.ts   the Podcasting 2.0 chapters file
   format/render.ts  shaping output for a model
-  tools/          one module per group, grouped by what they reach
-  transport/http.ts streamable HTTP
+  format/fence.ts   fencing text other people wrote
+  tools/          one module per group, grouped by what they reach,
+                  plus kit.ts, which adapts them to Slipway and maps errors to exit codes
 ```
+
+[Slipway](https://github.com/thenavidm/slipway) owns MCP over stdio and
+`--http`, the CLI, the write guard, approvals, annotations and the audit log.
 
 ## Commands
 
@@ -39,11 +43,11 @@ Do not re-derive these.
 
 | | |
 |---|---|
-| Language | TypeScript, Node 20+, ESM |
+| Language | TypeScript, Node 22+, ESM |
 | Package | `@thenavidm/podcastindex-mcp-cli` |
-| Transport | stdio and streamable HTTP |
+| Framework | [Slipway](https://github.com/thenavidm/slipway): one definition of each tool serves MCP over stdio and `--http`, and the CLI |
 | Tests | vitest against a faked fetch, never the network |
-| Writes | on by default, `confirm` only on the two irreversible ones |
+| Writes | on by default, approval only on the two irreversible ones |
 
 ## Things that will bite you
 
@@ -85,14 +89,15 @@ cannot tell a fabricated one from a real one.
 2. Write the description for a model that cannot see the code. Say what it
    reaches, what it costs, and what will surprise the caller. The test suite
    enforces a minimum length because a thin description is a real bug
-3. Set `risk` honestly. `destructive` means it cannot be undone
+3. Set `risk` honestly. `destructive` means it cannot be undone; Slipway adds
+   `confirm` to it, and `consequence` says what cannot be taken back
 4. Export it from the module's array, which `tools/index.ts` already collects
 5. Update the tool count in `package.json`, `README.md` and `SKILL.md`
 
 ## Verification
 
-GitHub Actions does not run on this account, so `ci.yml` is inert and CI is not
-verification. Check locally:
+CI runs the typecheck, the build, the tests and the built binary on Node 22 and
+24, and a tag publishes to npm. Check locally before pushing:
 
 ```bash
 npm run verify

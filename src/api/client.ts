@@ -8,7 +8,7 @@
  * **`fulltext` is set on everything that can take it, and that is deliberate.**
  * Without it Podcast Index truncates every text field to 100 characters. A
  * description cut at 100 characters looks like a real description, so a model
- * reading one summarises a show from its first sentence and never knows the
+ * reading one summarizes a show from its first sentence and never knows the
  * rest existed. That is a silent wrong answer, which is worse than an error,
  * and the only cost of avoiding it is response size.
  *

@@ -25,6 +25,7 @@
  * for it by name.
  */
 
+import { readPolicy } from "@thenavidm/slipway";
 import { VERSION } from "./version.js";
 
 export type Config = {
@@ -33,6 +34,7 @@ export type Config = {
   /** API secret. Never sent: it is hashed into the Authorization header. */
   apiSecret?: string;
 
+  /** What Slipway enforces, reported by `status` and the status resource. */
   readOnly: boolean;
   allowDestructive: boolean;
 
@@ -61,14 +63,8 @@ export const DEFAULT_API_HOST = "https://api.podcastindex.org/api/1.0";
  */
 export const DEFAULT_USER_AGENT = `podcastindex-mcp/${VERSION}`;
 
-function envFlag(name: string, fallback: boolean): boolean {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  return /^(1|true|yes|on)$/i.test(raw.trim());
-}
-
-function envInt(name: string, fallback: number): number {
-  const raw = process.env[name];
+function envInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const raw = env[name];
   if (!raw) return fallback;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) {
@@ -87,31 +83,32 @@ function normalizeHost(raw: string | undefined, fallback: string): string {
   return withScheme.replace(/\/+$/, "");
 }
 
-export function loadConfig(): Config {
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const policy = readPolicy(env, "PODCASTINDEX");
   return {
-    apiKey: process.env.PODCASTINDEX_API_KEY?.trim() || undefined,
-    apiSecret: process.env.PODCASTINDEX_API_SECRET?.trim() || undefined,
+    apiKey: env.PODCASTINDEX_API_KEY?.trim() || undefined,
+    apiSecret: env.PODCASTINDEX_API_SECRET?.trim() || undefined,
 
-    readOnly: envFlag("PODCASTINDEX_READ_ONLY", false),
-    allowDestructive: envFlag("PODCASTINDEX_ALLOW_DESTRUCTIVE", true),
+    readOnly: policy.readOnly,
+    allowDestructive: policy.allowDestructive,
 
-    requestTimeoutMs: envInt("PODCASTINDEX_REQUEST_TIMEOUT_MS", 30_000),
-    minRequestIntervalMs: envInt("PODCASTINDEX_MIN_REQUEST_INTERVAL_MS", 120),
-    maxRetries: envInt("PODCASTINDEX_MAX_RETRIES", 3),
-    cacheTtlMs: envInt("PODCASTINDEX_CACHE_TTL_MS", 300_000),
+    requestTimeoutMs: envInt(env, "PODCASTINDEX_REQUEST_TIMEOUT_MS", 30_000),
+    minRequestIntervalMs: envInt(env, "PODCASTINDEX_MIN_REQUEST_INTERVAL_MS", 120),
+    maxRetries: envInt(env, "PODCASTINDEX_MAX_RETRIES", 3),
+    cacheTtlMs: envInt(env, "PODCASTINDEX_CACHE_TTL_MS", 300_000),
 
     // A podcaster's own host is slower and flakier than Podcast Index, and a
     // transcript is a bigger download than a JSON response, so it gets its own
     // longer deadline rather than inheriting the API one.
-    fileTimeoutMs: envInt("PODCASTINDEX_FILE_TIMEOUT_MS", 45_000),
+    fileTimeoutMs: envInt(env, "PODCASTINDEX_FILE_TIMEOUT_MS", 45_000),
     // A two hour episode transcribes to roughly 120k characters. Returning that
     // whole thing costs more context than any single answer is worth, so tools
     // that read one paginate over this rather than dumping it.
-    maxTranscriptChars: envInt("PODCASTINDEX_MAX_TRANSCRIPT_CHARS", 24_000),
+    maxTranscriptChars: envInt(env, "PODCASTINDEX_MAX_TRANSCRIPT_CHARS", 24_000),
 
-    apiHost: normalizeHost(process.env.PODCASTINDEX_API_HOST, DEFAULT_API_HOST),
-    userAgent: process.env.PODCASTINDEX_USER_AGENT?.trim() || DEFAULT_USER_AGENT,
-    auditPath: process.env.PODCASTINDEX_AUDIT_LOG || undefined,
+    apiHost: normalizeHost(env.PODCASTINDEX_API_HOST, DEFAULT_API_HOST),
+    userAgent: env.PODCASTINDEX_USER_AGENT?.trim() || DEFAULT_USER_AGENT,
+    auditPath: policy.auditLog,
   };
 }
 

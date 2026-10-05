@@ -84,13 +84,6 @@ export class WritePermissionError extends PodcastIndexError {
   }
 }
 
-export class WriteBlockedError extends PodcastIndexError {
-  constructor(message: string) {
-    super(message, 0, "guard", { retryable: false });
-    this.name = "WriteBlockedError";
-  }
-}
-
 export class NotFoundError extends PodcastIndexError {
   constructor(message: string, resource: string) {
     super(message, 404, resource, { retryable: false });

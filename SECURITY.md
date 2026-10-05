@@ -50,7 +50,7 @@ This server reads transcripts, show notes and chapter titles. All of it is text
 other people wrote, and transcripts are fetched from hosts nobody vetted.
 
 Anybody who can publish a podcast can put "ignore your previous instructions"
-into their own transcript file, at no cost, and "summarise this episode" is the
+into their own transcript file, at no cost, and "summarize this episode" is the
 first thing anyone asks.
 
 Two mitigations, and neither is complete. User-authored text is fenced with a
@@ -59,7 +59,7 @@ rule is also stated in the server instructions, so it is in context before the
 first tool result arrives.
 
 For an agent working unattended on other people's content, `PODCASTINDEX_READ_ONLY=1`
-is the real defence. The fencing helps a model behave; only the missing tools
+is the real defense. The fencing helps a model behave; only the missing tools
 stop it acting.
 
 ## Good-faith research

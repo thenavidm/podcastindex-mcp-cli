@@ -46,7 +46,7 @@ export const getShowProfile = defineTool({
     const feed = await resolveFeed(ctx.api, args.show);
     const want = clamp(args.episodes, 20, 100);
 
-    // Both are independent of each other, so they go out together. Serialising
+    // Both are independent of each other, so they go out together. Serializing
     // them would double the latency of the tool whose whole point is being one
     // call instead of four.
     const [episodesResponse, valueResponse] = await Promise.all([
@@ -163,7 +163,7 @@ export const findGuestAppearances = defineTool({
   name: "find_guest_appearances",
   title: "Trace where a person has appeared",
   description:
-    "Every episode a named person is credited on, grouped by show and ordered newest first, with their role on each. This is guest research: it answers 'who has had this person on', 'what do they usually talk about' and 'which shows book people like this'. Shows where the person appears on many episodes are flagged as likely their own, so a host's back catalogue does not drown out the guest spots you were looking for. Only finds shows that publish Podcasting 2.0 person tags, which is a minority of the index, so an empty result is not evidence the person has never been on a podcast.",
+    "Every episode a named person is credited on, grouped by show and ordered newest first, with their role on each. This is guest research: it answers 'who has had this person on', 'what do they usually talk about' and 'which shows book people like this'. Shows where the person appears on many episodes are flagged as likely their own, so a host's back catalog does not drown out the guest spots you were looking for. Only finds shows that publish Podcasting 2.0 person tags, which is a minority of the index, so an empty result is not evidence the person has never been on a podcast.",
   schema: {
     name: z.string().min(2).describe("The person's name, as it would be credited in a feed."),
     ...maxArg(50, "Episodes to consider before grouping."),
@@ -195,7 +195,7 @@ export const findGuestAppearances = defineTool({
         );
         // Four or more appearances on one show is a host, a co-host or a
         // regular, not a guest spot. Saying so is the difference between a
-        // useful list and one dominated by somebody's own back catalogue.
+        // useful list and one dominated by somebody's own back catalog.
         const likelyTheirOwn = episodes.length >= 4;
 
         const rows = episodes

@@ -3,10 +3,27 @@
 | Component | Version | Checked |
 |---|---|---|
 | Podcast Index API | 1.0 | 2026-09-01 |
-| @modelcontextprotocol/sdk | 1.30.0 | 2026-09-01 |
-| zod | 3.x | 2026-09-01 |
-| zod-to-json-schema | 3.24.x | 2026-09-03 |
-| Node | 20+ | 2026-09-01 |
+| Slipway | ^0.1.11 | 2026-10-05 |
+| MCP TypeScript SDK, through Slipway | 2.3.0 | 2026-10-05 |
+| zod | 4.x | 2026-10-05 |
+| Node | 22+ | 2026-10-05 |
+
+## 2.0.0, 2026-10-05
+
+Built on [Slipway](https://github.com/thenavidm/slipway) 0.1.11. The 36 tools keep their names and arguments, and every difference below was measured against 1.1.2, the last version on npm, before release.
+
+- **A person approves each feed submission over MCP.** `submit_feed` and `submit_feed_by_itunes_id` add a podcast to a public directory that this API cannot remove it from; Claude Code (2.1.246 and later) shows its own prompt for each, and a client that can show forms asks with an approval form whose one box starts unticked. Approvals are signed, bound to the exact call and work once. Where a client can do neither, the model's `confirm: true` still counts, and `PODCASTINDEX_CONFIRM=model` makes it enough everywhere. `notify_feed_update` still needs nothing, and the audit log records who approved each write.
+- **A smaller tool list.** 11,843 tokens in Claude Code with every tool loaded, down from 13,095: the per-tool `$schema` line, an `execution` field and `additionalProperties: false` are gone. The last one advertised strict input while unknown keys were dropped anyway; the schema now says what happens. The resources now say their type.
+- **Exit codes come from the error, not its wording.** A rejected key, or one without write permission, exits 4; a feed that is not in the index 3; a rate limit 7, whatever the status, as in 1.1; and a missing key or secret 10. A parameter Podcast Index rejects (400) exits 2 instead of 5, and so do a show name passed where an identifier belongs, an identifier `notify_feed_update` cannot take, and `get_episode` with neither an id nor a GUID, which exited 3. An unknown command and a write hidden by `PODCASTINDEX_READ_ONLY=1` exit 2 instead of 1, and `doctor` with nothing configured 10 instead of 1. 1 now means an unexpected error. The resource, the surface and Podcast Index's detail come along in `details`.
+- **`which <words>` finds a command**, and `agent-context` describes every command, flag and setting as JSON. In Codex 0.159.3, finding the command that finds the moment a phrase was said took 83,167 input tokens over the CLI instead of 83,990 (median of five), because Codex asked `which` instead of reading the full command list.
+- **`install <client>`** adds the server to Claude Code, Codex, Claude Desktop, Cursor, VS Code or Gemini CLI in each one's own format.
+- **Less work to start.** The entry turns on Node's compile cache, and the server spends 154 ms of CPU before its first answer where 1.1.2 spent 186 (median of 21 runs, taking turns on one busy Mac). npx installs 4 dependencies instead of 94.
+- **The release carries the desktop extension**, which the README already sent Claude Desktop users to.
+- **Docs fixes.** The README has a Features table, the icon and the terminal recording load from cdn.navid.me, the sample `doctor` output is the real one, the exit codes include 1, the server instructions, tool descriptions and docs use American spelling, and THIRD_PARTY_NOTICES.md lists the production dependencies' licenses.
+
+### Upgrading
+
+Node 22 or newer; 1.1 ran on 20. Scripts keep working for success, a refused submit, missing credentials, a rejected key, a rate limit and a show that is not in the index; one that read exit 1 as an unknown command or a hidden write, or exit 5 as a rejected parameter or an unusable identifier, should read 2. Over MCP, expect an approval prompt or form before a feed is submitted; a headless agent that should submit with `confirm: true` alone needs `PODCASTINDEX_CONFIRM=model`. The audit log's lines gain `surface`, `risk` and `confirmed_by`, and each allowed write is followed by a `done` or `failed` line. A script that pipes JSON-RPC into the server must keep stdin open until it reads the answer: the server now stops when its input ends, as the MCP stdio binding asks. `--http` refuses a page from another site unless `PODCASTINDEX_HTTP_ALLOWED_ORIGINS` lists it. Some terminal screens grew: the command list by 24 tokens, for the lines that point to `which` and `--help`; and the refusal to submit without `--confirm` by 14, for its code and a hint that `--confirm` is only for an action the user asked for.
 
 ## 1.1.2, 2026-10-04
 

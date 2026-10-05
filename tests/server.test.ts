@@ -10,21 +10,45 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { describe, expect, it } from "vitest";
-import { buildServer, VERSION } from "../src/server.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cli, connect } from "@thenavidm/slipway/testing";
+import { app } from "../src/app.js";
+import { VERSION } from "../src/version.js";
 import { ALL_TOOLS } from "../src/tools/index.js";
 import { PodcastIndexClient } from "../src/api/client.js";
 import { HttpClient } from "../src/api/http.js";
-import { WriteGuard, fence } from "../src/safety.js";
-import { WriteBlockedError } from "../src/api/errors.js";
+import { fence } from "../src/format/fence.js";
 import { classifyShow, resolveFeed } from "../src/tools/kit.js";
 import { EPISODE, FEED, fakeFetch, testConfig } from "./helpers.js";
 
+/** A fresh environment per call: the app keeps one context, and its clients, per environment. */
+const creds = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
+  PODCASTINDEX_API_KEY: "TESTKEY",
+  PODCASTINDEX_API_SECRET: "testsecret",
+  PODCASTINDEX_MIN_REQUEST_INTERVAL_MS: "1",
+  ...extra,
+});
+
+/** Every request answers this, and the calls are kept. */
+const mockApi = (body: unknown = { status: "true", description: "ok" }) =>
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    async () => new Response(JSON.stringify(body), { status: 200, headers: { date: new Date().toUTCString() } }),
+  );
+
+afterEach(() => vi.restoreAllMocks());
+
+const listed = async (env: NodeJS.ProcessEnv) => {
+  const mcp = await connect(app, { env });
+  const tools = await mcp.listTools();
+  await mcp.close();
+  return tools;
+};
+
 describe("the tool surface", () => {
-  it("builds and registers every tool", () => {
-    const built = buildServer(testConfig(), fakeFetch(() => ({ body: {} })).fetch);
-    expect(built.toolCount).toBe(ALL_TOOLS.length);
-    expect(built.toolCount).toBeGreaterThan(30);
+  it("builds and registers every tool", async () => {
+    const tools = await listed(creds());
+    expect(tools.map((tool) => tool.name)).toEqual(ALL_TOOLS.map((tool) => tool.name));
+    expect(tools.length).toBeGreaterThan(30);
   });
 
   it("gives every tool a unique name, a title and a real description", () => {
@@ -38,79 +62,77 @@ describe("the tool surface", () => {
       // A description is the entire interface for a model that cannot see the
       // code, so a short one is a bug rather than a style question.
       expect(tool.description.length, `${tool.name} description is too short`).toBeGreaterThan(120);
-      expect(tool.schema, `${tool.name} schema`).toBeDefined();
+      expect(tool.jsonSchema, `${tool.name} schema`).toBeDefined();
     }
   });
 
   it("puts confirm on the irreversible writes and nowhere else", () => {
     for (const tool of ALL_TOOLS) {
-      const hasConfirm = "confirm" in tool.schema;
-      expect(hasConfirm, `${tool.name} confirm should match destructive`).toBe(
-        tool.risk === "destructive",
-      );
+      const hasConfirm = "confirm" in ((tool.jsonSchema.properties as object | undefined) ?? {});
+      expect(hasConfirm, `${tool.name} confirm should match destructive`).toBe(tool.risk === "destructive");
     }
   });
 
-  it("annotates reads as read-only and destructive writes as destructive", () => {
+  it("annotates reads as read-only and destructive writes as destructive", async () => {
     const reads = ALL_TOOLS.filter((t) => t.risk === "read");
     const destructive = ALL_TOOLS.filter((t) => t.risk === "destructive");
     expect(reads.length).toBeGreaterThan(destructive.length * 5);
     // Adding a feed cannot be undone through this API. Those are the only two.
-    expect(destructive.map((t) => t.name).sort()).toEqual([
-      "submit_feed",
-      "submit_feed_by_itunes_id",
-    ]);
+    expect(destructive.map((t) => t.name).sort()).toEqual(["submit_feed", "submit_feed_by_itunes_id"]);
+    const tools = await listed(creds());
+    const of = (name: string) => tools.find((tool) => tool.name === name)!.annotations ?? {};
+    expect(of("get_podcast")).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
+    expect(of("submit_feed")).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    // 1.1 called every call idempotent unless it could not be undone, and an explicit false stays false.
+    expect(of("notify_feed_update")).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true });
   });
 
-  it("hides every write when read-only is set", () => {
-    const built = buildServer(
-      testConfig({ readOnly: true }),
-      fakeFetch(() => ({ body: {} })).fetch,
-    );
+  it("hides every write when read-only is set", async () => {
     const writes = ALL_TOOLS.filter((t) => t.risk !== "read").length;
-    expect(built.toolCount).toBe(ALL_TOOLS.length - writes);
+    expect((await listed(creds({ PODCASTINDEX_READ_ONLY: "1" }))).length).toBe(ALL_TOOLS.length - writes);
   });
 });
 
 describe("write gating", () => {
-  const guard = (over = {}) => new WriteGuard(testConfig(over));
-
-  it("lets reads through untouched", () => {
-    expect(() => guard().check("get_podcast", "read", undefined, "read")).not.toThrow();
-  });
-
-  it("does not ask for confirmation on the harmless write", () => {
+  it("does not ask for confirmation on the harmless write", async () => {
     // notify_feed_update is idempotent and needs no credential. Guarding it
     // would teach the reflex that makes guarding the submits useless.
-    expect(() => guard().check("notify_feed_update", "write", undefined, "ping")).not.toThrow();
+    mockApi();
+    expect((await cli(app, ["notify-feed-update", "--show", "920666"], { env: {} })).code).toBe(0);
   });
 
-  it("refuses an unconfirmed submit and says why", () => {
-    expect(() => guard().check("submit_feed", "destructive", undefined, "add a feed")).toThrow(
-      WriteBlockedError,
-    );
-    expect(() => guard().check("submit_feed", "destructive", undefined, "add a feed")).toThrow(
-      /no way to remove it/,
-    );
+  it("refuses an unconfirmed submit, says why, and sends nothing", async () => {
+    const calls = mockApi();
+    const run = await cli(app, ["submit-feed", "--feed-url", "https://example.com/feed.xml"], { env: creds() });
+    expect(run.code).toBe(2);
+    expect(JSON.parse(run.stderr).code).toBe("refused");
+    expect(run.stderr).toContain("this API cannot remove it");
+    expect(calls).not.toHaveBeenCalled();
   });
 
-  it("allows a confirmed submit", () => {
-    expect(() => guard().check("submit_feed", "destructive", true, "add a feed")).not.toThrow();
+  it("allows a confirmed submit", async () => {
+    const calls = mockApi({ status: "true", feedId: 1, description: "ok" });
+    const run = await cli(app, ["submit-feed", "--feed-url", "https://example.com/feed.xml", "--confirm"], { env: creds() });
+    expect(run.code).toBe(0);
+    expect(calls).toHaveBeenCalled();
   });
 
-  it("blocks every write in read-only mode, confirmed or not", () => {
-    expect(() => guard({ readOnly: true }).check("submit_feed", "destructive", true, "x")).toThrow(
-      /READ_ONLY/,
-    );
-    expect(() => guard({ readOnly: true }).check("notify_feed_update", "write", undefined, "x")).toThrow(
-      /READ_ONLY/,
-    );
+  it("hides every write in read-only mode, confirmed or not", async () => {
+    const env = creds({ PODCASTINDEX_READ_ONLY: "1" });
+    for (const argv of [["submit-feed", "--feed-url", "https://example.com/feed.xml", "--confirm"], ["notify-feed-update", "--show", "920666"]]) {
+      const run = await cli(app, argv, { env });
+      expect(run.code).toBe(2);
+      expect(run.stderr).toContain("READ_ONLY");
+    }
   });
 
-  it("keeps the reversible write while blocking the irreversible ones", () => {
-    const g = guard({ allowDestructive: false });
-    expect(() => g.check("notify_feed_update", "write", undefined, "x")).not.toThrow();
-    expect(() => g.check("submit_feed", "destructive", true, "x")).toThrow(/ALLOW_DESTRUCTIVE/);
+  it("keeps the reversible write while blocking the irreversible ones", async () => {
+    mockApi();
+    const env = creds({ PODCASTINDEX_ALLOW_DESTRUCTIVE: "0" });
+    expect((await cli(app, ["notify-feed-update", "--show", "920666"], { env })).code).toBe(0);
+    const submit = await cli(app, ["submit-feed", "--feed-url", "https://example.com/feed.xml", "--confirm"], { env });
+    expect(submit.code).toBe(2);
+    expect(submit.stderr).toContain("ALLOW_DESTRUCTIVE");
   });
 });
 
@@ -131,7 +153,7 @@ describe("prompt injection framing", () => {
 });
 
 describe("identifier handling", () => {
-  it("recognises all four forms a caller might have", () => {
+  it("recognizes all four forms a caller might have", () => {
     expect(classifyShow("920666")).toEqual({ kind: "feedId", value: 920666 });
     expect(classifyShow("https://example.com/feed.xml")).toEqual({
       kind: "feedUrl",

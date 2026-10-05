@@ -206,7 +206,7 @@ export class HttpClient {
     }
   }
 
-  /** Serialise every request behind the configured minimum interval. */
+  /** Serialize every request behind the configured minimum interval. */
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
     const run = this.queue.then(async () => {
       const gap = this.config.minRequestIntervalMs - (Date.now() - this.lastRequestAt);

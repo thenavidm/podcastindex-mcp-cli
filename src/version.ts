@@ -1,7 +1,7 @@
 /**
  * One place the version lives.
  *
- * config.ts and server.ts both need it, and a copy in each is how they drifted
+ * config.ts and app.ts both need it, and a copy in each is how they drifted
  * apart. A test pins this against package.json.
  */
-export const VERSION = "1.1.2";
+export const VERSION = "2.0.0";

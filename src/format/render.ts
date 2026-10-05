@@ -13,12 +13,12 @@
  *   - every listing says where it came from and how many there are
  *   - unix timestamps become ISO-8601, because Podcast Index returns seconds
  *     since the epoch everywhere and two of those cannot be compared by eye
- *   - a feed's Podcasting 2.0 tags are summarised as flags, since "this show
+ *   - a feed's Podcasting 2.0 tags are summarized as flags, since "this show
  *     publishes transcripts" is the useful fact and the URLs are per episode
  *   - text other people wrote is fenced
  */
 
-import { fence } from "../safety.js";
+import { fence } from "./fence.js";
 import type { Category, Episode, Feed, IndexStats, ValueBlock } from "../api/types.js";
 
 /** Podcast Index returns seconds since the epoch. Zero means "never". */

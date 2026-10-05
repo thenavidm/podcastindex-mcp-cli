@@ -36,7 +36,7 @@ import {
   searchCues,
   type Cue,
 } from "../api/transcripts.js";
-import { fence } from "../safety.js";
+import { fence } from "../format/fence.js";
 import type { Episode } from "../api/types.js";
 import { clamp, classifyShow, defineTool, maxArg, showArg, type ToolContext } from "./kit.js";
 
@@ -92,7 +92,7 @@ function noTranscript(episode: Episode): PodcastIndexError {
   );
 }
 
-/** Render merged cues as timestamped, speaker-labelled text. */
+/** Render merged cues as timestamped, speaker-labeled text. */
 function renderCues(cues: Cue[]): string {
   return cues
     .map((cue) => {
@@ -153,7 +153,7 @@ export const getTranscript = defineTool({
       ` show="${(episode.feedTitle ?? "").replace(/"/g, "'")}"` +
       ` format="${parsed.format}"` +
       ` segments="${merged.length}"` +
-      ` speakers="${parsed.speakers.length ? parsed.speakers.join(", ") : "none labelled"}"` +
+      ` speakers="${parsed.speakers.length ? parsed.speakers.join(", ") : "none labeled"}"` +
       ` offset="${offset}"` +
       ` returned_chars="${window.length}"` +
       ` remaining_chars="${remaining}"` +
@@ -232,7 +232,7 @@ export const getChapters = defineTool({
   name: "get_chapters",
   title: "Read an episode's chapters",
   description:
-    "Fetch and read the chapter list a publisher attached to an episode: titles, start times, images and links. Chapters are the publisher's own table of contents, so this answers 'what is in this episode and when' far more cheaply than reading the transcript. Chapters the publisher marked as excluded from the table of contents are kept and labelled rather than dropped, because in practice that flag marks sponsor reads and hiding them would make the timeline misrepresent the episode. Like transcripts, chapters are optional and most episodes have none.",
+    "Fetch and read the chapter list a publisher attached to an episode: titles, start times, images and links. Chapters are the publisher's own table of contents, so this answers 'what is in this episode and when' far more cheaply than reading the transcript. Chapters the publisher marked as excluded from the table of contents are kept and labeled rather than dropped, because in practice that flag marks sponsor reads and hiding them would make the timeline misrepresent the episode. Like transcripts, chapters are optional and most episodes have none.",
   schema: {
     episode_id: z.number().int().describe("Podcast Index episode id."),
   },

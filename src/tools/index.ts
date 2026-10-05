@@ -12,7 +12,7 @@ import { RESEARCH_TOOLS } from "./research.js";
 import { WRITE_TOOLS } from "./write.js";
 import type { AnyToolSpec } from "./kit.js";
 
-export const ALL_TOOLS = [
+export const ALL_TOOLS: AnyToolSpec[] = [
   ...STATUS_TOOLS,
   ...SEARCH_TOOLS,
   ...PODCAST_TOOLS,
@@ -23,4 +23,4 @@ export const ALL_TOOLS = [
   ...VALUE_TOOLS,
   ...HEALTH_TOOLS,
   ...WRITE_TOOLS,
-] as unknown as AnyToolSpec[];
+];

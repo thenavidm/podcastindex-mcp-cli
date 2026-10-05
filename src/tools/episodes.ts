@@ -1,5 +1,5 @@
 /**
- * Episodes: a show's back catalogue, and one episode in detail.
+ * Episodes: a show's back catalog, and one episode in detail.
  *
  * The same one-tool-many-endpoints choice as `get_podcast`, for the same
  * reason. What is specific here is `since`, which is the difference between
@@ -10,6 +10,7 @@
  */
 
 import { z } from "zod";
+import { UsageError } from "@thenavidm/slipway";
 import { NotFoundError } from "../api/errors.js";
 import { renderEpisode, renderEpisodes } from "../format/render.js";
 import { clamp, classifyShow, defineTool, maxArg, normalizeSince, showArg, sinceArg } from "./kit.js";
@@ -21,7 +22,7 @@ export const getEpisodes = defineTool({
     "Episodes for one show, newest first. Takes any show identifier: feed id, RSS URL, podcast GUID, Apple link or iTunes id. Each episode says which Podcasting 2.0 extras it carries in its 'has' attribute, so you can see at a glance which ones have a transcript or chapters worth fetching. Use 'since' rather than a large 'max' when you only want recent episodes.",
   schema: {
     ...showArg,
-    ...maxArg(20, "Shows with long back catalogues can return thousands, so keep this tight."),
+    ...maxArg(20, "Shows with long back catalogs can return thousands, so keep this tight."),
     ...sinceArg,
   },
   risk: "read",
@@ -45,7 +46,7 @@ export const getEpisodes = defineTool({
     const rendered = renderEpisodes(items, { source: "episodes", query: args.show });
 
     // liveItems are scheduled or in-progress broadcasts and are not part of the
-    // back catalogue. Merging them into the list would put an unpublished
+    // back catalog. Merging them into the list would put an unpublished
     // stream where a model expects the newest episode.
     if (!live.length) return rendered;
     return `${rendered}\n${renderEpisodes(live, {
@@ -79,7 +80,7 @@ export const getEpisode = defineTool({
   surface: "index",
   handler: async (args, ctx) => {
     if (!args.episode_id && !args.guid) {
-      throw new NotFoundError("Pass either episode_id or guid.", "episodes");
+      throw new UsageError("Pass either episode_id or guid.");
     }
 
     let response;

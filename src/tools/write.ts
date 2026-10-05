@@ -19,7 +19,7 @@
  */
 
 import { z } from "zod";
-import { PodcastIndexError } from "../api/errors.js";
+import { UsageError } from "@thenavidm/slipway";
 import { classifyShow, confirmArg, defineTool, snippet } from "./kit.js";
 
 export const notifyFeedUpdate = defineTool({
@@ -39,10 +39,8 @@ export const notifyFeedUpdate = defineTool({
   handler: async (args, ctx) => {
     const ref = classifyShow(args.show);
     if (ref.kind !== "feedId" && ref.kind !== "feedUrl") {
-      throw new PodcastIndexError(
+      throw new UsageError(
         `This endpoint only takes a feed id or a feed URL, and "${args.show}" is neither. Call get_podcast first to turn a GUID or an Apple link into a feed id.`,
-        0,
-        "hub/pubnotify",
       );
     }
     const response = await ctx.api.pubNotify(
@@ -73,6 +71,7 @@ export const submitFeed = defineTool({
     ...confirmArg,
   },
   risk: "destructive",
+  consequence: "adds a feed to a public directory that hundreds of podcast apps read, and this API cannot remove it",
   surface: "index",
   idempotent: true,
   summary: (args) => `add ${snippet(args.feed_url, 80)} to the public Podcast Index`,
@@ -108,6 +107,7 @@ export const submitFeedByItunesId = defineTool({
     ...confirmArg,
   },
   risk: "destructive",
+  consequence: "adds a feed to a public directory that hundreds of podcast apps read, and this API cannot remove it",
   surface: "index",
   idempotent: true,
   summary: (args) => `add iTunes id ${args.itunes_id} to the public Podcast Index`,

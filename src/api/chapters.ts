@@ -14,7 +14,7 @@
  * The format is stable and small, so this is mostly validation. The one real
  * decision is `toc`: the spec lets a publisher mark a chapter as not belonging
  * in a table of contents, which is how sponsor reads are usually flagged. They
- * are kept, and labelled, rather than dropped, because "where are the ads"
+ * are kept, and labeled, rather than dropped, because "where are the ads"
  * is a legitimate question and silently removing them would make the timeline
  * lie about what is in the episode.
  */

@@ -1,9 +1,10 @@
 /**
- * Shared plumbing every tool uses.
+ * Shared plumbing every tool uses, now on Slipway.
  *
- * Registering forty tools by hand is forty chances to forget an annotation,
- * leak a stack trace, or return a shape a model cannot read. This wraps all of
- * it once, so a tool module only describes what it actually does.
+ * Tool modules keep describing themselves with a Zod shape, a risk and a
+ * handler. This adapter turns each into a Slipway tool, so the MCP server, the
+ * CLI, the write guard, annotations and errors all come from the framework
+ * instead of a copy kept in this repo.
  *
  * The piece of real logic here is `resolveFeed`. Podcast Index identifies a
  * show four different ways and has a different endpoint for each, while a
@@ -11,52 +12,46 @@
  * from their host, an Apple link they copied, a numeric id from an earlier
  * result. Four near-identical tools would push that bookkeeping onto the model,
  * which then has to know that an Apple Podcasts URL contains an iTunes id. One
- * tool that recognises all four is the difference between a working call and a
+ * tool that recognizes all four is the difference between a working call and a
  * plausible guess at the wrong endpoint.
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z, type ZodRawShape } from "zod";
-import { PodcastIndexError, NotFoundError } from "../api/errors.js";
+import {
+  ApiError,
+  NotConfiguredError,
+  RateLimitError as SlipwayRateLimitError,
+  SlipwayError,
+  TimeoutError as SlipwayTimeoutError,
+  UsageError,
+  httpError,
+  toSlipwayError,
+  toolkit,
+  z,
+  type Risk,
+  type Tool,
+} from "@thenavidm/slipway";
+import { MissingCredentialsError, NotFoundError, PodcastIndexError, TimeoutError } from "../api/errors.js";
 import { PodcastIndexClient } from "../api/client.js";
 import { HttpClient, type FetchLike } from "../api/http.js";
 import type { Config } from "../config.js";
-import { annotationsFor, type Risk, type Surface, type WriteGuard } from "../safety.js";
 import type { Feed } from "../api/types.js";
+
+/**
+ * Which of the three surfaces a tool needs.
+ *
+ * `index` needs the credential. `open` does not. `web` leaves Podcast Index
+ * entirely and fetches a file from the podcaster's own host, which is both the
+ * least reliable thing this server does and the most injectable.
+ */
+export type Surface = "index" | "open" | "web";
 
 export type ToolContext = {
   api: PodcastIndexClient;
   http: HttpClient;
   config: Config;
-  guard: WriteGuard;
 };
 
-export type ToolResult = {
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-};
-
-export function ok(data: unknown): ToolResult {
-  const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-  return { content: [{ type: "text", text }] };
-}
-
-/**
- * Errors come back as a normal result with `isError`, not a thrown exception.
- *
- * A thrown MCP error reaches the model as a protocol failure with no structure.
- * A result it can read tells it what went wrong and usually how to fix it,
- * which is the difference between a correct retry and a give-up. Every message
- * in `api/errors.ts` is written on that assumption, and throwing here would
- * throw all of them away.
- */
-export function fail(error: unknown): ToolResult {
-  const payload =
-    error instanceof PodcastIndexError
-      ? error.toJSON()
-      : { error: (error as Error)?.message ?? String(error) };
-  return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], isError: true };
-}
+const kit = toolkit<ToolContext>();
 
 /** The argument that names a show, in every shape someone might have one. */
 export const showArg = {
@@ -67,13 +62,12 @@ export const showArg = {
     ),
 };
 
+/**
+ * Kept so tool modules read the same, but never sent: Slipway adds `confirm`
+ * to every tool that cannot be undone, with one description everywhere.
+ */
 export const confirmArg = {
-  confirm: z
-    .boolean()
-    .optional()
-    .describe(
-      "Must be true for this to run. It adds a feed to a public directory that many podcast apps read, and this API has no way to remove it afterwards.",
-    ),
+  confirm: z.boolean().optional(),
 };
 
 export const maxArg = (fallback: number, note = "") => ({
@@ -125,10 +119,8 @@ export function classifyShow(raw: string): ShowRef {
 
   if (/^https?:\/\//i.test(input)) return { kind: "feedUrl", value: input };
 
-  throw new PodcastIndexError(
+  throw new UsageError(
     `"${raw}" is not a show identifier this understands. Pass a Podcast Index feed id, an RSS feed URL, a podcast GUID, or an Apple Podcasts URL. If you only have a name, call search_podcasts first.`,
-    0,
-    "show",
   );
 }
 
@@ -168,7 +160,9 @@ export function normalizeSince(since: number | undefined): number | undefined {
   return since;
 }
 
-export type ToolSpec<S extends ZodRawShape> = {
+type Shape = Record<string, z.ZodType>;
+
+export type ToolSpec<S extends Shape> = {
   name: string;
   /** One line, imperative. Shown in tool pickers. */
   title: string;
@@ -178,59 +172,63 @@ export type ToolSpec<S extends ZodRawShape> = {
   surface: Surface;
   /** True when calling twice has the same effect as calling once. */
   idempotent?: boolean;
+  /** What a confirmed call does that cannot be taken back, for the refusal and the approval. */
+  consequence?: string;
   handler: (args: z.infer<z.ZodObject<S>>, ctx: ToolContext) => Promise<unknown>;
   /** One line for the audit log and the confirm message, when this writes. */
   summary?: (args: z.infer<z.ZodObject<S>>) => string;
 };
 
-export function defineTool<S extends ZodRawShape>(spec: ToolSpec<S>): ToolSpec<S> {
-  return spec;
-}
+export type AnyToolSpec = Tool<ToolContext>;
 
 /**
- * A tool of any shape, for the one place tools are collected into a list.
- *
- * `ToolSpec` is generic over its schema, so a list of tools with different
- * schemas has no single type: each handler takes a different argument shape and
- * function parameters are contravariant. The type safety that matters lives
- * inside each `defineTool` call, where schema and handler are checked against
- * each other. This only loosens the seam where they are gathered.
+ * Podcast Index's status picks the exit code: 401 and 403 (a key without
+ * write permission) are 4, 404 is 3, 429 is 7, 400 is 2 and the rest 5. A
+ * rate limit is 7 whatever the status, read from the words as 1.1 did, and a
+ * missing key or secret is setup still to do, 10. A request that never got an
+ * answer is upstream, 5, and a bug in this code stays 1.
  */
-export type AnyToolSpec = Omit<ToolSpec<ZodRawShape>, "handler" | "summary"> & {
-  handler: (args: never, ctx: ToolContext) => Promise<unknown>;
-  summary?: (args: never) => string;
-};
+export function toSlipway(error: unknown): unknown {
+  if (error instanceof SlipwayError) return error;
+  if (error instanceof MissingCredentialsError) return new NotConfiguredError(error.message, { cause: error });
+  if (error instanceof PodcastIndexError) {
+    const options = {
+      ...(error.status ? { status: error.status } : {}),
+      details: { resource: error.resource, ...(error.surface ? { surface: error.surface } : {}), ...(error.detail ? { detail: error.detail } : {}) },
+      cause: error,
+    };
+    if (error.status === 429 || /rate ?limit/i.test(error.message)) return new SlipwayRateLimitError(error.message, options);
+    if (error instanceof TimeoutError) return new SlipwayTimeoutError(error.message, options);
+    return error.status ? httpError(error.status, error.message, options) : new ApiError(error.message, options);
+  }
+  if (error instanceof Error && error.constructor === Error) {
+    const known = toSlipwayError(error);
+    return known.code === "internal" ? new ApiError(error.message, { cause: error }) : known;
+  }
+  return error;
+}
 
-/** Register one tool against the server, with guarding and error handling. */
-export function register(server: McpServer, ctx: ToolContext, spec: AnyToolSpec): void {
-  server.registerTool(
-    spec.name,
-    {
-      title: spec.title,
-      description: spec.description,
-      inputSchema: spec.schema,
-      annotations: {
-        title: spec.title,
-        ...annotationsFor(spec.risk, { idempotent: spec.idempotent }),
-      },
-    },
-    // The SDK derives its callback type from the schema generic. This wrapper is
-    // generic over the same shape, but TypeScript cannot prove the two equal
-    // through the indirection, so the cast lives at this single boundary rather
-    // than in every tool definition.
-    (async (args: Record<string, unknown>) => {
+export function defineTool<S extends Shape>(spec: ToolSpec<S>): Tool<ToolContext> {
+  const { confirm: _confirm, ...shape } = spec.schema as Shape;
+  const handler = spec.handler as (args: Record<string, unknown>, ctx: ToolContext) => Promise<unknown>;
+  return kit.defineTool({
+    name: spec.name,
+    title: spec.title,
+    description: spec.description,
+    input: z.object(shape),
+    risk: spec.risk,
+    // 1.1 called every call idempotent unless it could not be undone, and the annotations keep saying so.
+    idempotent: spec.idempotent ?? spec.risk !== "destructive",
+    ...(spec.consequence ? { consequence: spec.consequence } : {}),
+    ...(spec.summary ? { summary: spec.summary as (args: Record<string, unknown>) => string } : {}),
+    handler: async (args, ctx) => {
       try {
-        if (spec.risk !== "read") {
-          const summary = spec.summary?.(args as never) ?? spec.name;
-          const confirm = (args as { confirm?: boolean }).confirm;
-          ctx.guard.check(spec.name, spec.risk, confirm, summary);
-        }
-        return ok(await spec.handler(args as never, ctx));
+        return await handler(args, ctx);
       } catch (error) {
-        return fail(error);
+        throw toSlipway(error);
       }
-    }) as never,
-  );
+    },
+  });
 }
 
 /**
@@ -240,14 +238,10 @@ export function register(server: McpServer, ctx: ToolContext, spec: AnyToolSpec)
  * which meant the CLI would have had to assemble a second one and the two would
  * have drifted the first time a field was added. One constructor, one shape.
  */
-export function makeContext(
-  config: Config,
-  guard: WriteGuard,
-  fetchImpl: FetchLike = fetch,
-): ToolContext {
+export function makeContext(config: Config, fetchImpl: FetchLike = fetch): ToolContext {
   const http = new HttpClient(config, fetchImpl);
   const api = new PodcastIndexClient(http);
-  return { api, http, config, guard };
+  return { api, http, config };
 }
 
 /** Clamp a caller-supplied max into a range the upstream will accept. */

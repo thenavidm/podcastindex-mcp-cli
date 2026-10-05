@@ -54,7 +54,7 @@ export const getPodcastsByMedium = defineTool({
   name: "get_podcasts_by_medium",
   title: "Browse feeds by medium",
   description:
-    "List feeds of one Podcasting 2.0 medium. The medium says what a feed actually contains, and the index carries far more than talk shows: music, video, film, audiobook, newsletter, blog, course and publisher feeds all live here. Use this to find content types that a normal podcast search buries, such as audiobooks or serialised film.",
+    "List feeds of one Podcasting 2.0 medium. The medium says what a feed actually contains, and the index carries far more than talk shows: music, video, film, audiobook, newsletter, blog, course and publisher feeds all live here. Use this to find content types that a normal podcast search buries, such as audiobooks or serialized film.",
   schema: {
     medium: z
       .enum([

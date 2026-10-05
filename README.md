@@ -1,4 +1,4 @@
-<img src="https://cdn.navid.media/connectors/podcastindex-icon.png" alt="Podcast Index" width="88">
+<img src="https://cdn.navid.me/connectors/podcastindex-icon.png" alt="Podcast Index" width="88">
 
 # Podcast Index MCP Server & CLI
 
@@ -24,9 +24,9 @@ So you can ask when something was said, and get an answer.
 
 There are 36 tools. One free key covers all but two of them.
 
-Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme).
+Built by [Navid Moazzez](https://navid.me?utm_source=github&utm_medium=referral&utm_campaign=podcastindex-mcp-cli&utm_content=readme). Built on [Slipway](https://github.com/thenavidm/slipway), which turns one definition of each tool into the MCP server and the CLI.
 
-<img src="https://cdn.navid.media/repos/podcastindex-mcp.gif?v=2" alt="Claude Code using the Podcast Index MCP server" width="520">
+<img src="https://cdn.navid.me/repos/podcastindex-mcp.gif" alt="Claude Code using the Podcast Index MCP server" width="520">
 
 ## Two ways to use it
 
@@ -50,14 +50,15 @@ podcastindex-cli <command> --help                         # what any command tak
 
 `--confirm` is the shell spelling of the confirmation that adding a feed to the
 index needs. `--json` gives JSON, `--compact` puts it on one line, `--select`
-keeps only the fields you name, and `--agent` turns on all of it for a script.
-Exit codes are 0 ok, 2 usage or a refused write, 3 not found, 4 auth, 5 API,
-7 rate limited and 10 nothing configured, so a script branches on the number.
+keeps only the fields you name, and `--agent` is compact JSON with no prompts,
+and never confirms a write. Exit codes are 0 ok, 1 an unexpected error, 2 usage
+or a hidden or refused write, 3 not found, 4 auth, 5 API, 7 rate limited and 10
+nothing configured, so a script branches on the number.
 
 `podcastindex-cli schema <command>` prints the exact JSON Schema an MCP client
 receives for that tool.
 
-### MCP server, for AI agents
+### MCP server, for your AI app
 
 `podcastindex-mcp` is what Claude Code, Claude Desktop, Cursor and the rest
 launch. You never run it by hand:
@@ -72,17 +73,31 @@ claude mcp add podcastindex \
 In Claude Desktop, the [`.mcpb` extension](https://github.com/thenavidm/podcastindex-mcp-cli/releases/latest)
 installs on a double click. Section 4 has every other client.
 
+A feed submission waits for your approval in the client, as
+[section 9](#9-writing-safely-) explains.
+
+### Which one
+
+| Where you are | What you can reach |
+|---|---|
+| An agent that can run shell commands, like Claude Code or Cursor | Both. The CLI is the cheaper one: it costs nothing until you type it |
+| claude.ai, the Claude Desktop chat tab, or a phone | The server only. There is no shell to run a command in |
+| A terminal, a script, cron or CI | The CLI only. There is no MCP client in a shell |
+
+They are the same program reading the same tool definitions, so anything one can
+do, the other can.
+
 ### What each costs
 
 Both surfaces are the same program with the same 36 tools. The
 difference is when the model pays for them. Measured in Claude Code:
 
-| | MCP server | CLI |
+| Cost | MCP server | CLI |
 |---|---|---|
-| Every message, with every tool loaded | 13,100 tokens | nothing |
+| Every message, with every tool loaded | 11,800 tokens | nothing |
 | Every message, Claude Code's default | 1,300 tokens | nothing |
-| When Podcast Index comes up | nothing more, or the tools it picks | 3,300 tokens for `SKILL.md`, once |
-| 20 messages with Podcast Index in 1, every tool loaded | 262,000 tokens | 3,300 tokens |
+| When Podcast Index comes up | nothing more, or the tools it picks | 3,400 tokens for `SKILL.md`, once |
+| 20 messages with Podcast Index in 1, every tool loaded | 236,000 tokens | 3,400 tokens |
 
 Claude Code's [tool search](https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search)
 is on by default: it sends only the tool names and the server instructions,
@@ -95,15 +110,46 @@ To spend less, turn the server off when you are not using it, which in Claude
 Code is the `/mcp` panel. `PODCASTINDEX_READ_ONLY=1` takes the 3 write tools off the list, leaving 33.
 Or install the CLI and add the server on the days it earns its place.
 
-Measured on 2026-09-27 with Claude Code 2.1.257 on Claude Opus 5: one
+Measured on 2026-10-05 with Claude Code 2.1.286 on Claude Opus 5.5: one
 short prompt with and without the server connected, once with
 `ENABLE_TOOL_SEARCH=false` and once with the default, the difference read
 from the API's own usage figures. `SKILL.md` was measured the same way. Other
 apps and models count tokens a little differently.
 
+Against 1.1.2, measured the same day: every tool loaded costs 11,843 tokens
+instead of 13,095, tool search the same (1,253 against 1,253), and `SKILL.md`
+60 more, because it now says how approval works over MCP and lists every exit
+code. In Codex 0.159.3 on gpt-6.1-sol, the same task, "find the command that
+finds the moment a phrase was said in an episode's transcript, and the flags it
+requires", read a median of 83,167 input tokens on 2.0.0 against 83,990 on
+1.1.2 over the CLI, five runs each: Codex now asks `which` instead of reading
+the full command list. Over MCP, Codex prints the tool list with a script and
+cuts the printout to about 10,000 tokens, so it read about 9,020 on both
+versions, out of a full listing of 28,195 tokens on 2.0.0 against 28,239, and
+a median of 48,367 input tokens against 48,444.
+
+## Features
+
+Every tool is both a command and an MCP tool, with the same name. The command
+is the tool name with dashes.
+
+| Capability | CLI command | MCP tool |
+|---|---|---|
+| Read what was said in an episode | `podcastindex-cli get-transcript` / `search-transcript` / `get-chapters` | `get_transcript` / `search_transcript` / `get_chapters` |
+| Questions, not endpoints | `podcastindex-cli get-show-profile` / `find-guest-appearances` / `find-shows-to-pitch` | `get_show_profile` / `find_guest_appearances` / `find_shows_to_pitch` |
+| Search the index | `podcastindex-cli search-podcasts` / `search-episodes-by-person` | `search_podcasts` / `search_episodes_by_person` |
+| Shows and episodes | `podcastindex-cli get-podcast` / `get-episodes` / `get-podcasts-batch` | `get_podcast` / `get_episodes` / `get_podcasts_batch` |
+| What is new and trending | `podcastindex-cli get-trending` / `get-recent-episodes` | `get_trending` / `get_recent_episodes` |
+| Value for value | `podcastindex-cli get-value-block` | `get_value_block` |
+| Feed health | `podcastindex-cli check-feed-health` | `check_feed_health` |
+| Add or refresh a feed | `podcastindex-cli notify-feed-update` / `submit-feed` | `notify_feed_update` / `submit_feed` |
+| Check your setup | `podcastindex-cli doctor` | `status` |
+
+All 36 are in [section 6](#6-tools-).
+
 ## Contents
 
-| | Section | |
+| # | Section | What is in it |
 |---|---|---|
 | 1 | [What you can ask it](#1-what-you-can-ask-it-) | Real prompts, not features |
 | 2 | [Quick install](#2-quick-install-) | One line |
@@ -136,7 +182,7 @@ why "when did they say that" is a question you can now ask.
 
 ## 2. Quick install ⚡
 
-Node 20 or newer. Nothing else.
+Node 22 or newer. Nothing else.
 
 ```bash
 npx -y @thenavidm/podcastindex-mcp-cli@latest --version
@@ -260,7 +306,8 @@ npx -y @thenavidm/podcastindex-mcp-cli@latest --http --port 8000
 ```
 
 Host that somewhere with a public HTTPS URL and set `PODCASTINDEX_HTTP_TOKEN`,
-which the server requires before it will bind anything but loopback. Then in
+which the server requires before it will bind anything but loopback. A page from
+another site is refused unless `PODCASTINDEX_HTTP_ALLOWED_ORIGINS` lists it. Then in
 claude.ai: **Customize**, **Connectors**, **+**, **Add custom connector**, paste
 the URL, **Add**.
 
@@ -319,6 +366,14 @@ PODCASTINDEX_API_SECRET = "your_secret"
 Any stdio MCP client takes the same three things: the command `npx`, the args,
 and the env block.
 
+Or let the CLI write the entry, in each client's own format:
+
+```bash
+npx -y -p @thenavidm/podcastindex-mcp-cli podcastindex-cli install claude-code
+```
+
+It takes `claude-code`, `codex`, `claude-desktop`, `cursor`, `vscode` or `gemini`, and `--dry-run` shows the change first.
+
 ### Every setting
 
 Two are required. The rest have defaults that suit almost everyone, and are
@@ -331,7 +386,8 @@ listed here so nobody has to read the source to find out what is tunable.
 | `PODCASTINDEX_USER_AGENT` | `podcastindex-mcp/<version>` | Identify your product to Podcast Index |
 | `PODCASTINDEX_READ_ONLY` | `0` | `1` hides the three tools that write |
 | `PODCASTINDEX_ALLOW_DESTRUCTIVE` | `1` | `0` keeps the recrawl ping, blocks the two submits |
-| `PODCASTINDEX_AUDIT_LOG` | none | Path to an append-only log of every attempted write |
+| `PODCASTINDEX_AUDIT_LOG` | none | Path to an append-only log of every attempted write, and who approved it |
+| `PODCASTINDEX_CONFIRM` | `human` | `model` lets `confirm: true` alone approve over MCP, for an agent with no person to ask |
 | `PODCASTINDEX_MAX_TRANSCRIPT_CHARS` | `24000` | How much transcript one call returns |
 | `PODCASTINDEX_CACHE_TTL_MS` | `300000` | How long a response stays reusable |
 | `PODCASTINDEX_REQUEST_TIMEOUT_MS` | `30000` | Per-request deadline against the index |
@@ -342,6 +398,10 @@ listed here so nobody has to read the source to find out what is tunable.
 | `PODCASTINDEX_HTTP_PORT` | `8000` | For `--http` only |
 | `PODCASTINDEX_HTTP_HOST` | `127.0.0.1` | For `--http` only |
 | `PODCASTINDEX_HTTP_TOKEN` | none | Bearer token. Required to bind anything but loopback |
+| `PODCASTINDEX_HTTP_ALLOWED_ORIGINS` | none | Comma-separated browser origins allowed to connect; a page from any other site is refused |
+| `PODCASTINDEX_SURFACE` | `full` | `search` lists three tools that find, describe and run the rest |
+| `PODCASTINDEX_TOOL_TIMEOUT_MS` | none | Give up on any tool after this long |
+| `PODCASTINDEX_DEBUG` | `0` | `1` prints debug lines on stderr |
 
 **To disconnect,** remove the entry from your client's config and restart the
 client. There is nothing installed globally to uninstall, since `npx` fetches it
@@ -354,16 +414,19 @@ npx -y @thenavidm/podcastindex-mcp-cli@latest doctor
 ```
 
 ```
-podcastindex-mcp doctor
+Podcast Index doctor
 
-  ok   Node version       v22.14.0
-  ok   API key            set, 20 characters
-  ok   API secret         set, 40 characters
-  ok   Podcast Index API  reachable and authenticated, 4,312,880 feeds indexed
-  ok   Clock sync         2 seconds ahead, well inside the 180 second signing window
-  ok   Tools registered   36, including 3 that write
+  ✓ Node.js            v22.14.0
+  ✓ Version            podcastindex 2.0.0
+  ✓ Writes             on
+  ✓ Tools              36 of 36 on
+  ✓ Credentials        configured
+  ✓ API key            set, 20 characters
+  ✓ API secret         set, 40 characters
+  ✓ Podcast Index API  reachable and authenticated, 4,312,880 feeds indexed
+  ✓ Clock sync         2 seconds ahead, well inside the 180 second signing window
 
-Everything checks out.
+  Ready.
 ```
 
 The clock line is the one to read. See below for why.
@@ -379,7 +442,7 @@ from the publisher's own host.
 |---|---|
 | `get_transcript` | Fetches and parses the transcript into timestamped text with speakers |
 | `search_transcript` | Finds the moment a phrase was said, with a timestamp |
-| `get_chapters` | The publisher's own table of contents, sponsor breaks included and labelled |
+| `get_chapters` | The publisher's own table of contents, sponsor breaks included and labeled |
 | `get_soundbites` | The clips the publisher marked as the best moments |
 | `find_transcripts` | Which of a show's episodes have transcripts, in one request |
 
@@ -446,8 +509,8 @@ from the publisher's own host.
 | Tool | Needs |
 |---|---|
 | `notify_feed_update` | nothing, not even a key |
-| `submit_feed` | `confirm: true`, and a key with write permission |
-| `submit_feed_by_itunes_id` | `confirm: true`, and a key with write permission |
+| `submit_feed` | your approval, and a key with write permission |
+| `submit_feed_by_itunes_id` | your approval, and a key with write permission |
 
 ## 7. What Podcast Index actually does 🧭
 
@@ -526,7 +589,7 @@ the raw number.
 
 Without the `fulltext` flag the API cuts every text field to 100 characters, and
 a description cut at 100 characters still looks like a description. A model
-reading one would summarise a show from its first sentence and never know the
+reading one would summarize a show from its first sentence and never know the
 rest existed.
 
 This server sets `fulltext` on every call that accepts it. You will not hit this,
@@ -547,7 +610,7 @@ episode id is wanted.
 and **this API has no delete**. Removing something means asking the people who
 run Podcast Index.
 
-That is why those two tools need `confirm: true` and `notify_feed_update` does
+That is why those two tools wait for your approval and `notify_feed_update` does
 not.
 
 ## 8. Your data 📦
@@ -565,7 +628,7 @@ the hash is what travels.
 
 Credentials live wherever your MCP client keeps its config, which is a plain
 JSON or TOML file on your own machine. This server writes nothing to disk unless
-you set `PODCASTINDEX_AUDIT_LOG`, and then only a line per attempted write.
+you set `PODCASTINDEX_AUDIT_LOG`, and then only a line or two per attempted write.
 
 Everything Podcast Index holds is public. There is no personal listening data
 here to leak, because the index does not have any.
@@ -579,13 +642,22 @@ needs no credential, and is not guarded, because guarding harmless things trains
 the habit that makes real guards useless.
 
 `submit_feed` and `submit_feed_by_itunes_id` add a podcast to a public directory
-and cannot be undone through this API. Both require `confirm: true`.
+and cannot be undone through this API. Both wait for your approval.
+
+Over MCP a person approves each submit where the client can ask: Claude Code
+(2.1.246 and later) shows its own prompt, and a client that can show forms asks
+with an approval form whose one box starts unticked. Each approval is signed,
+bound to that exact call and works once. Where a client can do neither, the
+model's `confirm: true` counts, and it should pass it only when you asked to add
+that feed. `PODCASTINDEX_CONFIRM=model` makes `confirm: true` enough everywhere,
+for an agent with no person to ask. In a terminal it is `--confirm`, which
+`--agent` never adds.
 
 | Variable | Effect |
 |---|---|
 | `PODCASTINDEX_READ_ONLY=1` | the three write tools are not registered at all |
 | `PODCASTINDEX_ALLOW_DESTRUCTIVE=0` | keeps the recrawl ping, blocks the two submits |
-| `PODCASTINDEX_AUDIT_LOG=<path>` | one JSON line per attempted write, allowed and blocked |
+| `PODCASTINDEX_AUDIT_LOG=<path>` | one JSON line per attempted write, allowed and blocked, and who approved it |
 
 Read-only removes the tools rather than erroring on them, because a model cannot
 call a tool it cannot see, and an error is an invitation to retry differently.
@@ -597,7 +669,7 @@ server fences that text as data before a model reads it, and says so in its
 instructions.
 
 That helps. It is not a guarantee. For an agent working unattended,
-`PODCASTINDEX_READ_ONLY=1` is the real defence.
+`PODCASTINDEX_READ_ONLY=1` is the real defense.
 
 ## 10. Troubleshooting 🔧
 
@@ -614,6 +686,9 @@ Run `doctor` first. It tests every credential and measures the clock.
 | `find_guest_appearances` returns nothing | Only shows publishing person tags are visible, which is a minority |
 | Rate limited | Use `get_podcasts_batch` and `get_show_profile` instead of loops of single calls |
 | Claude Desktop cannot find `npx` | It does not inherit your shell PATH. Use the absolute path from `which npx` |
+| "will not run without --confirm" | Working as intended: adding a feed cannot be undone. See [section 9](#9-writing-safely-) |
+| `claude -p` will not submit | Headless Claude Code refuses tools that need a person. Give that agent `PODCASTINDEX_CONFIRM=model` |
+| A piped request gets no answer | Stdin closed before the answer. The MCP stdio binding stops a server when its input ends; keep stdin open until you read the answer, or use the CLI |
 
 ## 11. FAQ ❓
 
@@ -696,7 +771,7 @@ It cannot. Nothing here deletes anything, because the API has no delete.
 
 The action worth knowing about is the opposite: `submit_feed` adds a podcast to
 a public directory permanently, and there is no way to remove it through this
-API. It requires `confirm: true` for exactly that reason, and it needs a key
+API. It waits for your approval for exactly that reason, and it needs a key
 with write permission that you will not have unless you asked for one.
 
 </details>
@@ -745,11 +820,38 @@ the content from the show notes.
 
 </details>
 
+<details>
+<summary><b>Why does adding a feed ask me to approve it?</b></summary>
+
+Because a feed added to Podcast Index stays there: this API has no delete, and
+hundreds of podcast apps read the index. So `submit_feed` waits for you. Claude
+Code shows its own prompt, a client that can show forms asks with one, and in a
+terminal it is `--confirm`. An agent with no person to ask can be given
+`PODCASTINDEX_CONFIRM=model`, which lets its own `confirm: true` count.
+
+Asking the index to recrawl a feed with `notify_feed_update` needs nothing,
+since doing it twice changes nothing.
+
+</details>
+
+<details>
+<summary><b>How do I update it, or remove it?</b></summary>
+
+With `@latest` in your client's config, `npx` fetches the newest version when
+the client starts the server, so there is nothing to update by hand. A global
+install updates with `npm i -g @thenavidm/podcastindex-mcp-cli`.
+
+To remove it, delete its entry from your client's config and restart the
+client, or run `npm uninstall -g @thenavidm/podcastindex-mcp-cli` for a global
+install. It leaves nothing on disk unless you set an audit log.
+
+</details>
+
 ## Questions
 
 Run into a problem or have a question? [Open an issue](https://github.com/thenavidm/podcastindex-mcp-cli/issues) and I will help.
 
-## About the author 👋
+## About the author
 
 Navid Moazzez is a leading AI business strategist, and the host of the AI Creator Summit, watched by 100,000+ creators. He helps creators and founders master AI and build their own AI Operating System (AI OS) to automate their business and life. He creates useful free tools, MCP servers and CLIs that creators and founders can use in their own workflows.
 
@@ -767,7 +869,8 @@ If this is useful, star the repo and come say hi on [X](https://x.com/thenavidm)
 
 | Library | License | What it does |
 |---|---|---|
-| [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) | MIT | The MCP server and transports |
+| [Slipway](https://github.com/thenavidm/slipway) | Apache-2.0 | The MCP server and the CLI from one definition of each tool, with the write guard |
+| [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) | Apache-2.0 | The MCP protocol, stdio and streamable HTTP transports, through Slipway |
 | [zod](https://github.com/colinhacks/zod) | MIT | Tool argument schemas and validation |
 
 Data comes from [Podcast Index](https://podcastindex.org), which is free and

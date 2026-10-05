@@ -10,7 +10,6 @@
 import { describe, expect, it } from "vitest";
 import { PodcastIndexClient } from "../src/api/client.js";
 import { HttpClient } from "../src/api/http.js";
-import { WriteGuard } from "../src/safety.js";
 import { getChapters, getTranscript, searchTranscript } from "../src/tools/content.js";
 import { checkFeedHealth } from "../src/tools/health.js";
 import { findShowsToPitch, getShowProfile } from "../src/tools/research.js";
@@ -36,7 +35,7 @@ function context(
   const { fetch, calls } = fakeFetch(responder);
   const http = new HttpClient(config, fetch);
   return {
-    ctx: { api: new PodcastIndexClient(http), http, config, guard: new WriteGuard(config) },
+    ctx: { api: new PodcastIndexClient(http), http, config },
     calls,
   };
 }
