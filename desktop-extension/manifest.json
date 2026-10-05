@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "podcastindex",
   "display_name": "Podcast Index",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Podcast Index MCP server and CLI for Claude Code, Codex and AI agents. 36 tools for podcast search, episode transcripts you can actually read and search, Podcasting 2.0 tags, value-for-value data, feed health and index stats.",
   "long_description": "Connects Claude to Podcast Index, the open podcast directory.\n\nOne free API key and secret, from api.podcastindex.org/signup, cover every reading tool. Both halves are needed: the key identifies you and the secret signs each request.\n\nIt searches four million podcasts and then opens the transcript: Podcast Index hands out a link to an episode's transcript file, and this fetches it and gives your AI the words with timestamps and speakers.\n\nAdding a feed to the public index cannot be undone through the API, so submit_feed and submit_feed_by_itunes_id wait for your approval, and they also need a key with write permission. Turn Read only on to remove every write from the tool list.",
   "author": {

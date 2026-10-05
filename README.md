@@ -417,7 +417,7 @@ npx -y @thenavidm/podcastindex-mcp-cli@latest doctor
 Podcast Index doctor
 
   ✓ Node.js            v22.14.0
-  ✓ Version            podcastindex 2.0.0
+  ✓ Version            podcastindex 2.0.1
   ✓ Writes             on
   ✓ Tools              36 of 36 on
   ✓ Credentials        configured
