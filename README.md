@@ -451,7 +451,7 @@ from the publisher's own host.
 | Tool | What it does |
 |---|---|
 | `get_show_profile` | One call for cadence, guests, health, Podcasting 2.0 coverage and payments |
-| `find_guest_appearances` | Every episode a person is credited on, grouped by show |
+| `find_guest_appearances` | Every episode that names a person, grouped by show: a person tag's role is a credit, `mentioned` is only a mention |
 | `find_shows_to_pitch` | Shows on a topic that are alive, publishing, and worth approaching |
 
 ### Search
@@ -550,9 +550,12 @@ sudo sntp -sS time.apple.com
 An empty result is a fact about that show, not a broken call. Nothing here can
 transcribe audio that was never transcribed, and retrying will not help.
 
-This matters most for guest research. `find_guest_appearances` only sees shows
-that publish person tags, so a thin result is a floor on somebody's appearances
-and never a complete list.
+This matters most for guest research. Podcast Index's person search matches
+person tags, episode titles and descriptions, and a feed's owner and author
+(its API doc, `search/byperson`, version 1.12.1). So `find_guest_appearances`
+marks a match with no person tag `role="mentioned"`: a name in a description is
+not a guest spot. Only shows that publish person tags give roles, so the guest
+spots it can prove are a floor, never a complete list.
 
 ### Transcript files lie about their format
 
@@ -683,7 +686,7 @@ Run `doctor` first. It tests every credential and measures the clock.
 | `get_transcript` says the show publishes none | Most shows do not. This is a fact about the show, not a failure |
 | A transcript times out | The publisher's host, not the index. Raise `PODCASTINDEX_FILE_TIMEOUT_MS` |
 | Transcript comes back with no speakers | The publisher supplied SRT without labels. Only the JSON format guarantees speakers |
-| `find_guest_appearances` returns nothing | Only shows publishing person tags are visible, which is a minority |
+| `find_guest_appearances` returns nothing | No person tag, title, description, owner or author names them as written: try another spelling |
 | Rate limited | Use `get_podcasts_batch` and `get_show_profile` instead of loops of single calls |
 | Claude Desktop cannot find `npx` | It does not inherit your shell PATH. Use the absolute path from `which npx` |
 | "will not run without --confirm" | Working as intended: adding a feed cannot be undone. See [section 9](#9-writing-safely-) |

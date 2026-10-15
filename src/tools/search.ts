@@ -7,11 +7,11 @@
  * episodes while a term search returns feeds, which is the thing a caller most
  * needs to know before it reads the result.
  *
- * The person search is the one worth understanding. It reads the Podcasting 2.0
- * <podcast:person> tag, so it finds episodes where somebody was credited rather
- * than merely mentioned. That makes it the only reliable way to ask "where has
- * this guest been", and it is also why it misses shows that publish no person
- * tags, which is most of them.
+ * The person search is the one worth understanding. Podcast Index's API doc
+ * (search/byperson, version 1.12.1) says it searches person tags, episode
+ * titles, episode descriptions, the feed owner and the feed author. So a result
+ * is a mention, and only an episode whose <podcast:person> tag names the person
+ * is a credit, with the role the tag gives.
  */
 
 import { z } from "zod";
@@ -83,9 +83,9 @@ export const searchPodcastsByTitle = defineTool({
 
 export const searchEpisodesByPerson = defineTool({
   name: "search_episodes_by_person",
-  title: "Find episodes crediting a person",
+  title: "Find episodes naming a person",
   description:
-    "Find episodes where a named person is credited as host, guest, producer or any other role. This reads the Podcasting 2.0 person tag, so it finds real credits rather than passing mentions, which makes it the tool for guest research and for tracing where somebody has appeared. Two honest limits: it only finds shows that publish person tags, which is a minority of the index, and it matches the name as written, so a person credited inconsistently appears under more than one spelling. Returns episodes, not shows.",
+    "Find episodes that name a person. Podcast Index searches person tags, episode titles, episode descriptions, the feed owner and the feed author, so a result can be a passing mention: only an episode whose Podcasting 2.0 person tag names them is a credit, with a role such as host or guest. It matches the name as written, so a person named inconsistently appears under more than one spelling. Returns episodes, not shows.",
   schema: {
     q: z.string().min(1).describe("The person's name, as it would be credited."),
     ...maxArg(30),
@@ -97,7 +97,7 @@ export const searchEpisodesByPerson = defineTool({
     return renderEpisodes(response.items ?? [], {
       source: "search/byperson",
       query: args.q,
-      note: "Only shows that publish <podcast:person> tags appear here, which is a minority of the index. An empty result is not evidence the person has never been on a podcast.",
+      note: "Podcast Index matches the name in person tags, episode titles and descriptions, and the feed's owner and author, so a result can be a mention rather than an appearance. Only a person tag gives a role. An empty result is not evidence the person has never been on a podcast.",
     });
   },
 });

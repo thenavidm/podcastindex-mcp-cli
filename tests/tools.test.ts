@@ -12,7 +12,7 @@ import { PodcastIndexClient } from "../src/api/client.js";
 import { HttpClient } from "../src/api/http.js";
 import { getChapters, getTranscript, searchTranscript } from "../src/tools/content.js";
 import { checkFeedHealth } from "../src/tools/health.js";
-import { findShowsToPitch, getShowProfile } from "../src/tools/research.js";
+import { findGuestAppearances, findShowsToPitch, getShowProfile } from "../src/tools/research.js";
 import { getValueBlock } from "../src/tools/value.js";
 import { notifyFeedUpdate } from "../src/tools/write.js";
 import type { ToolContext } from "../src/tools/kit.js";
@@ -267,5 +267,17 @@ describe("value blocks", () => {
   it("still raises a 400 that is genuinely a bad request", async () => {
     const { ctx } = context(() => ({ status: 400, body: { description: "Malformed parameter." } }));
     await expect(getValueBlock.handler({ show: "920666" }, ctx)).rejects.toThrow();
+  });
+});
+
+describe("find_guest_appearances", () => {
+  it("gives a person tag's role, and marks a name found only in the text as mentioned", async () => {
+    const tagged = { ...EPISODE, id: 1, feedId: 10, feedTitle: "Show A", title: "With Ana Diaz", persons: [{ name: "Ana Diaz", role: "guest" }] };
+    const named = { ...EPISODE, id: 2, feedId: 20, feedTitle: "Show B", title: "We talk about Ana Diaz's book", persons: [] };
+    const { ctx } = context(() => ({ body: { status: "true", items: [tagged, named], count: 2 } }));
+    const out = String(await findGuestAppearances.handler({ name: "Ana Diaz" } as never, ctx));
+    expect(out).toContain('role="guest"');
+    expect(out).toContain('role="mentioned"');
+    expect(out).not.toContain('role="credited"');
   });
 });

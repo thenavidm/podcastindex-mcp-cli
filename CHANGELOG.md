@@ -8,6 +8,10 @@
 | zod | 4.x | 2026-10-05 |
 | Node | 22+ | 2026-10-05 |
 
+## Unreleased
+
+- **A mention is not a guest spot.** Podcast Index's person search matches person tags, episode titles and descriptions, and a feed's owner and author (its API doc, `search/byperson`, version 1.12.1), but the server said it read person tags only and labelled every text match `role="credited"`. `find_guest_appearances` now marks a match with no person tag `role="mentioned"`, and the tool descriptions, guide and README say what the search covers.
+
 ## 2.0.1, 2026-10-05
 
 - **Built on Slipway 0.1.17**, which a fresh install of 2.0.0 already used. Since the Slipway 2.0.0 was measured on, 0.1.11, `which` also reads a tool's argument names and prints a title once where a description opens with it, and the general help names the settings that connect an account and the safety switches and counts the rest, which `agent-context` describes one by one. [Slipway's changelog](https://github.com/thenavidm/slipway/blob/main/CHANGELOG.md) lists the rest.

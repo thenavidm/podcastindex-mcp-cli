@@ -163,7 +163,7 @@ export const findGuestAppearances = defineTool({
   name: "find_guest_appearances",
   title: "Trace where a person has appeared",
   description:
-    "Every episode a named person is credited on, grouped by show and ordered newest first, with their role on each. This is guest research: it answers 'who has had this person on', 'what do they usually talk about' and 'which shows book people like this'. Shows where the person appears on many episodes are flagged as likely their own, so a host's back catalog does not drown out the guest spots you were looking for. Only finds shows that publish Podcasting 2.0 person tags, which is a minority of the index, so an empty result is not evidence the person has never been on a podcast.",
+    "Every episode that names a person, grouped by show and ordered newest first. An episode whose Podcasting 2.0 person tag names them carries that tag's role, such as guest or host; an episode that only names them in its title, its description or the feed's owner or author is marked role=\"mentioned\", which is not an appearance. This is guest research: it answers 'who has had this person on', 'what do they usually talk about' and 'which shows book people like this'. Shows where the person appears on many episodes are flagged as likely their own, so a host's back catalog does not drown out the guest spots you were looking for. An empty result is not evidence the person has never been on a podcast.",
   schema: {
     name: z.string().min(2).describe("The person's name, as it would be credited in a feed."),
     ...maxArg(50, "Episodes to consider before grouping."),
@@ -175,7 +175,7 @@ export const findGuestAppearances = defineTool({
     const items = response.items ?? [];
 
     if (!items.length) {
-      return `<appearances person="${args.name.replace(/"/g, "'")}" count="0">\n  <note>No credited appearances found. Podcast Index only indexes people through the optional <podcast:person> tag, and most shows publish none, so this is weak evidence at best. Try search_podcasts on the person's name in case they host a show, or search_episodes_by_person with a different spelling.</note>\n</appearances>`;
+      return `<appearances person="${args.name.replace(/"/g, "'")}" count="0">\n  <note>No episodes name this person. Podcast Index matches person tags, episode titles and descriptions, and the feed's owner and author, so a different spelling may still find them. Try search_podcasts on the person's name in case they host a show, or search_episodes_by_person with a different spelling.</note>\n</appearances>`;
     }
 
     const byShow = new Map<number, { title: string; episodes: Episode[] }>();
@@ -202,7 +202,8 @@ export const findGuestAppearances = defineTool({
           .slice(0, 10)
           .map((e) => {
             const role =
-              e.persons?.find((p) => p.name?.toLowerCase() === needle)?.role ?? "credited";
+              // No person tag for them: Podcast Index matched the name in the text, which is a mention.
+              e.persons?.find((p) => p.name?.toLowerCase() === needle)?.role ?? "mentioned";
             return `    <episode episode_id="${e.id}" published="${
               isoFrom(e.datePublished) ?? "unknown"
             }" role="${role.replace(/"/g, "'")}" title="${(e.title ?? "").replace(/"/g, "'")}" />`;
